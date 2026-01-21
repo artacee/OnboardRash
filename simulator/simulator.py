@@ -18,6 +18,7 @@ from datetime import datetime
 SERVER_URL = "http://localhost:5000"
 SIMULATION_INTERVAL = 2.0  # seconds between updates
 EVENT_PROBABILITY = 0.15   # 15% chance of rash event per update
+API_KEY = "default-secure-key-123"  # Must match backend
 
 
 class BusSimulator:
@@ -134,6 +135,7 @@ def send_location_update(bus, sensor_data):
                 'speed': sensor_data['speed'],
                 'heading': bus.heading
             },
+            headers={'X-API-Key': API_KEY},
             timeout=5
         )
         return response.status_code == 200
@@ -161,6 +163,7 @@ def send_event(bus, sensor_data, event):
         response = requests.post(
             f"{SERVER_URL}/api/events",
             json=payload,
+            headers={'X-API-Key': API_KEY},
             timeout=5
         )
         return response.status_code == 201
@@ -172,7 +175,7 @@ def send_event(bus, sensor_data, event):
 def main():
     """Main simulation loop."""
     print("\n" + "="*60)
-    print("🚌 RASH DRIVING SIMULATOR")
+    print("RASH DRIVING SIMULATOR")
     print("="*60)
     print(f"Server: {SERVER_URL}")
     print(f"Update interval: {SIMULATION_INTERVAL}s")
@@ -210,10 +213,10 @@ def main():
                     success = send_event(bus, sensor_data, event)
                     if success:
                         events_sent += 1
-                        severity_emoji = "🔴" if event['severity'] == 'HIGH' else "🟡"
-                        print(f"  {severity_emoji} {bus.registration}: {event['type']} ({event['severity']})")
+                        severity_label = "[HIGH]" if event['severity'] == 'HIGH' else "[MED]"
+                        print(f"  {severity_label} {bus.registration}: {event['type']} ({event['severity']})")
                 else:
-                    print(f"  🚌 {bus.registration}: Normal driving @ {sensor_data['speed']:.1f} km/h")
+                    print(f"  [BUS] {bus.registration}: Normal driving @ {sensor_data['speed']:.1f} km/h")
             
             print(f"\n  Total events sent: {events_sent}")
             time.sleep(SIMULATION_INTERVAL)

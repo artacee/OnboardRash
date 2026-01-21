@@ -4,10 +4,11 @@ Integrates Flask-SocketIO for real-time alerts to dashboard.
 """
 import os
 
-from flask import Flask, send_from_directory, jsonify
+from flask import Flask, send_from_directory, jsonify, request
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from dotenv import load_dotenv
+from functools import wraps
 
 from models import db
 
@@ -213,9 +214,9 @@ def init_db():
 
 if __name__ == '__main__':
     init_db()
-    print("\n" + "="*60)
-    print("🚌 RASH DRIVING DETECTION SYSTEM")
-    print("="*60)
+    print("\n============================================================")
+    print("BUS RASH DRIVING DETECTION SYSTEM")
+    print("============================================================")
     print("Server starting on http://localhost:5000")
     print("Dashboard: http://localhost:5000")
     print("API Docs: POST /api/events, GET /api/events, GET /api/buses")

@@ -61,6 +61,9 @@ def main():
         # Check if backend started successfully
         if backend_process.poll() is not None:
             print("❌ Backend failed to start!")
+            print("--- Error Output ---")
+            print(backend_process.stdout.read())
+            print("--------------------")
             sys.exit(1)
         
         print("✅ Backend running on", SERVER_URL)
@@ -95,6 +98,15 @@ def main():
             for name, process in processes:
                 if process.poll() is not None:
                     print(f"⚠️ {name} has stopped!")
+                    print(f"--- {name} Output ---")
+                    try:
+                        print(process.stdout.read())
+                    except Exception as e:
+                        print(f"Could not read output: {e}")
+                    print("---------------------")
+                    
+                    # If any process dies, we should probably stop everything
+                    raise KeyboardInterrupt
             
             time.sleep(1)
             
