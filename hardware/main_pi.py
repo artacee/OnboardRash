@@ -8,6 +8,7 @@ This script runs on the Raspberry Pi, reads sensor data, detects:
 - Captures video evidence
 
 Features:
+- Sensor Fusion (Kalman Filter) for Speed vs Vibration
 - Offline Support (Store & Forward)
 - Night Vision Enhancement
 - API Key Security
@@ -30,6 +31,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from sensors.mpu6050 import MPU6050
 from sensors.gps import GPSModule
 from sensors.ultrasonic import UltrasonicSensor, OvertakingDetector
+from sensors.sensor_fusion import KalmanFilter
 from data_manager import DataManager
 
 # Try to import camera and tailgating detector
@@ -135,7 +137,6 @@ def send_event(event_data, gps_data, accel, video_path=None, snapshot_path=None)
             payload['snapshot_path'] = snapshot_path
 
         # Queue the event via DataManager (handles offline support)
-        # Note: Logic moved from direct request to queuing
         success = data_manager.queue_event(payload, video_path, snapshot_path)
         
         if success:
@@ -153,8 +154,8 @@ def send_event(event_data, gps_data, accel, video_path=None, snapshot_path=None)
 def main():
     """Main loop for the Raspberry Pi detector."""
     print("\n" + "="*60)
-    print("🚌 RASH DRIVING DETECTION SYSTEM v2.0")
-    print("   Full Hardware Mode + Offline Support + Night Vision")
+    print("🚌 RASH DRIVING DETECTION SYSTEM v2.1")
+    print("   Full Hardware Mode + Sensor Fusion (Kalman Filter)")
     print("="*60)
     print(f"Server: {SERVER_URL}")
     print(f"Bus: {BUS_REGISTRATION}")
@@ -175,8 +176,12 @@ def main():
     except Exception:
         print(f"⚠️ GPS failed. Continuing...")
         gps = None
+        
+    # 3. Kalman Filter (Sensor Fusion)
+    kf = KalmanFilter(initial_speed=0)
+    print("🧠 Sensor Fusion (Kalman Filter) initialized")
     
-    # 3. Ultrasonic (Left Side)
+    # 4. Ultrasonic (Left Side)
     try:
         ultrasonic = UltrasonicSensor(name="left_side")
         overtaking_detector = OvertakingDetector(ultrasonic)
@@ -184,7 +189,7 @@ def main():
         print(f"⚠️ Ultrasonic failed: {e}")
         overtaking_detector = None
     
-    # 4. Camera & Tailgating
+    # 5. Camera & Tailgating
     camera = None
     tailgating_detector = None
     
@@ -224,13 +229,22 @@ def main():
             accel = mpu.read_acceleration()
             gps_data = gps.read() if gps else {}
             
+            # --- SENSOR FUSION ---
+            # Predict state using Accelerometer (X-axis is forward)
+            kf.predict(accel['x'])
+            
+            # Update state using GPS Speed (if available)
+            if gps_data.get('speed') is not None:
+                kf.update(gps_data['speed'])
+                
+            estimated_speed = kf.get_speed()
+            
             # --- ANALYZE RASH DRIVING (IMU) ---
             event = rash_detector.analyze(accel)
             
             # --- ANALYZE OVERTAKING (Ultrasonic) ---
-            # Only check for overtaking if bus is moving (> 10 km/h) to avoid walls/parking
-            current_speed = gps_data.get('speed', 0) or 0
-            if not event and overtaking_detector and current_speed > 10.0:
+            # Use FUSED Speed for better accuracy (Robust against GPS dropouts)
+            if not event and overtaking_detector and estimated_speed > 10.0:
                 event = overtaking_detector.analyze()
             
             # --- ANALYZE TAILGATING (Front Camera) ---
@@ -262,7 +276,7 @@ def main():
                 cam_status = '✓' if camera else '✗'
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] "
                       f"Accel X:{accel['x']:.2f}g | "
-                      f"GPS:{gps_status} ({int(current_speed)}km/h) | "
+                      f"Speed: {estimated_speed:.1f} km/h (Fused) | "
                       f"Events:{events_detected}")
                 last_print = current_time
             
