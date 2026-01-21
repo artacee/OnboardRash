@@ -20,6 +20,22 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-pro
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///rash_driving.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# Security
+API_KEY = os.getenv('API_KEY', 'default-secure-key-123')
+
+def require_api_key(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Check header
+        request_key = request.headers.get('X-API-Key')
+        if request_key and request_key == API_KEY:
+            return f(*args, **kwargs)
+        # For dev convenience, also check query param
+        if request.args.get('key') == API_KEY:
+            return f(*args, **kwargs)
+        return jsonify({'error': 'Unauthorized'}), 401
+    return decorated_function
+
 # Initialize extensions
 CORS(app, origins="*")
 db.init_app(app)
@@ -81,12 +97,14 @@ def health_check():
 # ==================== OVERRIDE EVENTS ROUTE ====================
 # Re-register the events POST to include SocketIO broadcast
 
-from flask import request
 from routes.events import receive_event as original_receive_event
 
 @app.route('/api/events', methods=['POST'], endpoint='events_with_broadcast')
+@require_api_key
 def receive_event_with_broadcast():
-    """Receive event and broadcast to dashboard."""
+    """Receive event and broadcast to dashboard.
+    AUTHENTICATED ENDPOINT
+    """
     # Remove the original route and use this one
     data = request.get_json()
     

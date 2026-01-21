@@ -6,19 +6,21 @@
                               ╔═══════════════════════════════════════════════════════╗
                               ║                     FRONT OF BUS                       ║
                               ║                                                         ║
+                              ║   ┌────────────────────────────────────────────────┐   ║
+                              ║   │                                                │   ║
+                              ║   │           RASPBERRY PI + SENSORS               │   ║
+                              ║   │           mounted on dashboard                 │   ║
+                              ║   │                                                │   ║
+                              ║   │   📦 Pi + MPU-6050 + GPS                       │   ║
+                              ║   │   📹 FRONT CAMERA (Tailgating Detection)       │   ║
+                              ║   │      Faces FORWARD ───►                        │   ║
+                              ║   │                                                │   ║
+                              ║   └────────────────────────────────────────────────┘   ║
+                              ║                                                         ║
                               ║                    ┌─────────────┐                      ║
                               ║                    │   DRIVER    │                      ║
                               ║                    │   SEAT      │                      ║
                               ║                    └─────────────┘                      ║
-                              ║                                                         ║
-                              ║   ┌────────────────────────────────────────────────┐   ║
-                              ║   │                                                │   ║
-                              ║   │           RASPBERRY PI + SENSORS               │   ║
-                              ║   │           mounted under dashboard               │   ║
-                              ║   │                                                │   ║
-                              ║   │   📦 Pi + MPU-6050 + GPS Module                │   ║
-                              ║   │                                                │   ║
-                              ║   └────────────────────────────────────────────────┘   ║
                               ╠═══════════════════════════════════════════════════════╣
        ◄─── LEFT SIDE ───     ║                                                         ║     ─── RIGHT SIDE ───►
                               ║                                                         ║
@@ -39,19 +41,6 @@
     │                         ║                                                         ║                         │
     └─────────────────────────╬─────────────────────────────────────────────────────────╬─────────────────────────┘
                               ║                                                         ║
-                              ║                                                         ║
-                              ╠═══════════════════════════════════════════════════════╣
-                              ║                                                         ║
-                              ║                  ┌─────────────────────────┐            ║
-                              ║                  │    📹 REAR CAMERA       │            ║
-                              ║                  │    Pi Camera Module     │            ║
-                              ║                  │                         │            ║
-                              ║                  │    TAILGATING           │            ║
-                              ║                  │    DETECTION            │            ║
-                              ║                  │                         │            ║
-                              ║                  │    Faces BACKWARD ◄──   │            ║
-                              ║                  └─────────────────────────┘            ║
-                              ║                                                         ║
                               ║                     REAR OF BUS                        ║
                               ╚═══════════════════════════════════════════════════════╝
 ```
@@ -62,22 +51,35 @@
 
 | Sensor | Location | Direction | Purpose |
 |--------|----------|-----------|---------|
-| **Raspberry Pi** | Under dashboard | N/A | Main processing unit |
-| **MPU-6050 (IMU)** | Dashboard area (with Pi) | N/A | Detects harsh braking, acceleration, turns |
-| **GPS Module** | Dashboard area (with Pi) | N/A | Location & speed tracking |
-| **Ultrasonic (LEFT)** | Left side, mid-bus | Facing outward (left) | Detects close overtaking vehicles |
-| **Rear Camera** | Rear of bus | Facing backward | Detects tailgating vehicles |
+| **Raspberry Pi** | Dashboard | N/A | Main processing unit |
+| **MPU-6050 (IMU)** | Dashboard (with Pi) | N/A | Detects harsh braking/turns |
+| **GPS Module** | Dashboard (with Pi) | N/A | Location & speed tracking |
+| **Front Camera** | Dashboard / Windshield | Facing Forward | Detects if **driver** is tailgating |
+| **Ultrasonic (LEFT)** | Left side, mid-bus | Facing Outward | Detects close overtaking vehicles |
 
 ---
 
 ## 🔧 Mounting Details
 
-### 1. Raspberry Pi + IMU + GPS (Dashboard Area)
+### 1. Dashboard Unit (Pi + Camera + IMU + GPS)
 ```
-Location: Under dashboard, accessible but protected
-Mount: Inside enclosure box with ventilation
-Power: Connected to 12V→5V converter from bus power
-Notes: Keep IMU level and firmly mounted for accurate readings
+Location: Center of dashboard or windshield mount
+Camera: Facing ROAD AHEAD (Forward) to see vehicle in front
+IMU: Mount flat and level
+GPS: Antenna with clear view of sky
+
+Tailgating View:
+     ┌─────────────────────────────────────────┐
+     │           FRONT CAMERA VIEW             │
+     │                                         │
+     │         Vehicle Ahead is CLOSE!         │
+     │    ╔═════════════════════════════════╗  │
+     │    ║       VEHICLE AHEAD             ║  │  ← Detected Vehicle
+     │    ╚═════════════════════════════════╝  │
+     │                                         │
+     │                                         │
+     └─────────────────────────────────────────┘
+          If matches >15% of frame = TAILGATING
 ```
 
 ### 2. Left Ultrasonic Sensor
@@ -86,43 +88,6 @@ Location: Middle of left side, at vehicle height (~1m from ground)
 Mount: Weatherproof housing, sensor face exposed
 Angle: Perpendicular to bus body (facing outward)
 Range: Detects vehicles 0-4 meters away
-Cable: 4-wire connection to Pi (VCC, GND, TRIG, ECHO)
-
-Detection Zone:
-                    ←── 1.5m (warning) ──→
-     ←────────────── 4m (max range) ────────────────→
-     ┌─────────────────────────────────────────────┐
-     │                 DETECTION ZONE              │
-     │    ╔═══════╗                                │
-     │    ║SENSOR ║▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ │
-     │    ╚═══════╝                                │
-     │      BUS                                    │
-     └─────────────────────────────────────────────┘
-```
-
-### 3. Rear Camera
-```
-Location: Center of rear, high position for better view
-Mount: Inside rear window or weatherproof external housing
-Angle: Slightly downward (15°) to capture following vehicles
-Field of View: Wide angle preferred (120°+)
-Cable: CSI ribbon cable (up to 2m) or USB extension
-
-Camera View:
-     ┌─────────────────────────────────────────┐
-     │               CAMERA VIEW               │
-     │                                         │
-     │    ╔═════════════════════════════════╗  │
-     │    ║   TAILGATING VEHICLE HERE       ║  │  ← Danger Zone
-     │    ╚═════════════════════════════════╝  │
-     │                                         │
-     │    ┌─────────────────────────────────┐  │
-     │    │   Warning Zone - Vehicle Close  │  │  ← Warning
-     │    └─────────────────────────────────┘  │
-     │                                         │
-     │         Normal Following Distance       │  ← Safe
-     └─────────────────────────────────────────┘
-         ROAD BEHIND BUS
 ```
 
 ---

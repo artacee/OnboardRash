@@ -1,12 +1,12 @@
 """
-Tailgating Detection using Camera
+Tailgating Detection using Front Camera
 
-Uses computer vision to detect vehicles following too closely behind the bus.
-Analyzes the rear-facing camera feed to identify tailgating situations.
+Uses computer vision to detect if the BUS DRIVER is tailgating the vehicle ahead.
+Analyzes the front-facing camera feed.
 
 Methods:
-1. Simple: Object size tracking - if vehicle appears large, it's close
-2. Advanced: YOLO object detection + distance estimation (requires Hailo/AI Kit)
+1. Object size tracking - if vehicle ahead appears large, we are too close
+2. Night Vision Enhancement - Gamma correction for low-light conditions
 """
 
 import os
@@ -25,12 +25,12 @@ except ImportError:
 
 class TailgatingDetector:
     """
-    Detects tailgating vehicles using rear camera.
+    Detects if the bus is tailgating the vehicle ahead using front camera.
     
-    Uses a simple but effective approach:
-    1. Detect vehicles in frame using contour detection or cascade classifier
-    2. Track vehicle size over time
-    3. If vehicle occupies large portion of frame → tailgating
+    Logic:
+    1. Preprocess frame (Night Vision enhancement)
+    2. Detect vehicles in front
+    3. If vehicle ahead occupies >15% of frame, it is dangerously close
     """
     
     # Detection thresholds
@@ -114,6 +114,27 @@ class TailgatingDetector:
                 vehicles.append((x, y, w, h))
         
         return vehicles
+
+    def preprocess_for_night(self, frame):
+        """
+        Enhance low-light frames for better detection.
+        Uses Gamma Correction to brighten dark images.
+        """
+        # Calculate average brightness
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        brightness = hsv[..., 2].mean()
+        
+        # If dark (<60/255), apply gamma correction
+        if brightness < 60:
+            gamma = 2.0  # Brighten
+            invGamma = 1.0 / gamma
+            table = np.array([((i / 255.0) ** invGamma) * 255
+                for i in np.arange(0, 256)]).astype("uint8")
+            
+            enhanced = cv2.LUT(frame, table)
+            return enhanced
+        
+        return frame
     
     def analyze_frame(self, frame):
         """
@@ -132,11 +153,14 @@ class TailgatingDetector:
         frame_height, frame_width = frame.shape[:2]
         frame_area = frame_width * frame_height
         
-        # Detect vehicles
+        # 1. Night Vision Enhancement
+        processed_frame = self.preprocess_for_night(frame)
+        
+        # 2. Detect vehicles
         if self.use_cascade and self.car_cascade is not None:
-            vehicles = self.detect_vehicles_cascade(frame)
+            vehicles = self.detect_vehicles_cascade(processed_frame)
         else:
-            vehicles = self.detect_vehicles_contour(frame)
+            vehicles = self.detect_vehicles_contour(processed_frame)
         
         # Find largest vehicle (closest)
         max_vehicle_area = 0

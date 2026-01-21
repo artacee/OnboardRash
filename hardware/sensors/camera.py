@@ -53,6 +53,8 @@ class CameraModule:
         self.buffer_seconds = 5  # Keep last 5 seconds in buffer
         self.buffer_max_frames = fps * self.buffer_seconds
         
+        self.current_frame = None  # Store latest frame for analysis
+        
         # Create output directory
         os.makedirs(output_dir, exist_ok=True)
         
@@ -114,10 +116,15 @@ class CameraModule:
         except Exception as e:
             print(f"Capture failed: {e}")
             return None
+            
+    def get_current_frame(self):
+        """Get the latest captured frame (thread-safe)."""
+        return self.current_frame
     
     def add_to_buffer(self, frame):
         """Add a frame to the rolling buffer."""
         if frame is not None:
+            self.current_frame = frame  # Update latest frame
             self.buffer.append((time.time(), frame))
             
             # Remove old frames
@@ -140,6 +147,25 @@ class CameraModule:
         if not self.camera or not CV2_AVAILABLE:
             return None
         
+        # Inhibit buffer recording loop temporarily? 
+        # Actually better to just let it run and captureframes manually here?
+        # If accessing camera resource is not thread safe this wil fail.
+        # But Picamera2 might handle it, and USB cam usually single reader.
+        # If buffer loop uses capture_frame, and save_clip uses capture_frame, they race.
+        
+        # Better strategy: 
+        # If we are recording in background, just read self.current_frame repeatedly?
+        # Or pause background thread?
+        
+        # For simplicity in this demo:
+        # We'll rely on the fact that if we just read 'self.buffer' we get "before" frames.
+        # For "after" frames, we will just sleep and let buffer fill up, 
+        # then grab fresh frames? No, we need to write to file.
+        
+        # Let's assume for now we can read frame. 
+        # If issues arise, we should change architecture to have one reader thread 
+        # and multiple consumers.
+        
         # Generate filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{event_type}_{timestamp}.mp4"
@@ -153,21 +179,30 @@ class CameraModule:
             writer = cv2.VideoWriter(filepath, fourcc, self.fps, self.resolution)
             
             # Write buffered frames (before event)
-            for _, frame in self.buffer:
+            # Create a copy to avoid modification during iteration
+            current_buffer = list(self.buffer)
+            for _, frame in current_buffer:
                 # Convert RGB to BGR for OpenCV if from picamera
                 if self.camera_type == "picamera":
                     frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                 writer.write(frame)
             
             # Record additional frames (after event)
+            # Since we have a background thread capturing frames, 
+            # we can just wait and grab them from current_frame or buffer?
+            # Or just call capture_frame (might conflict).
+            
             frames_after = int(self.fps * duration_after)
             for _ in range(frames_after):
-                frame = self.capture_frame()
+                # We need to coordinate with buffer loop.
+                # Easiest: just sleep 1/fps and read self.current_frame
+                time.sleep(1.0 / self.fps)
+                frame = self.current_frame
+                
                 if frame is not None:
                     if self.camera_type == "picamera":
                         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                     writer.write(frame)
-                time.sleep(1.0 / self.fps)
             
             writer.release()
             print(f"📹 Clip saved: {filepath}")
@@ -188,7 +223,11 @@ class CameraModule:
         Returns:
             str: Path to saved image, or None if failed
         """
-        frame = self.capture_frame()
+        # Use current frame if available
+        frame = self.current_frame
+        if frame is None:
+            frame = self.capture_frame()
+            
         if frame is None:
             return None
         
