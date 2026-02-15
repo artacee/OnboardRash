@@ -73,44 +73,46 @@ function AlertCard({ alert }: { alert: DrivingEvent }) {
       exit={{ opacity: 0, x: -30, scale: 0.95 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
       className={cn(
-        'p-3 rounded-lg bg-surface-1/60 border border-border-subtle border-l-[3px]',
+        'p-3.5 rounded-lg bg-surface-1/60 border border-border-subtle border-l-[3px]',
         severityBorder[alert.severity],
         alert.severity === 'HIGH' && 'bg-signal-critical/[0.04]'
       )}
     >
       {/* Top row */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-base">{config.icon}</span>
-          <span className="text-sm font-semibold">{config.label}</span>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <span className="text-base flex-shrink-0">{config.icon}</span>
+          <span className="text-sm font-semibold truncate">{config.label}</span>
         </div>
-        <Badge severity={alert.severity} pulse={alert.severity === 'HIGH'}>
-          {alert.severity}
-        </Badge>
+        <div className="flex-shrink-0">
+          <Badge severity={alert.severity} pulse={alert.severity === 'HIGH'}>
+            {alert.severity}
+          </Badge>
+        </div>
       </div>
 
       {/* Details */}
-      <div className="flex items-center gap-3 text-xs text-text-secondary">
-        <span className="font-mono">{alert.bus_registration || `Bus ${alert.bus_id}`}</span>
+      <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-xs text-text-secondary">
+        <span className="font-mono truncate max-w-[100px]">{alert.bus_registration || `Bus ${alert.bus_id}`}</span>
         {alert.speed && (
           <>
             <span className="text-text-ghost">•</span>
-            <span className="font-mono">{alert.speed.toFixed(0)} km/h</span>
+            <span className="font-mono whitespace-nowrap">{alert.speed.toFixed(0)} km/h</span>
           </>
         )}
         <span className="text-text-ghost">•</span>
-        <span>{formatRelativeTime(alert.timestamp)}</span>
+        <span className="whitespace-nowrap">{formatRelativeTime(alert.timestamp)}</span>
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2 mt-2.5">
+      <div className="flex items-center gap-3 mt-3 pt-2.5 border-t border-border-subtle/50">
         {alert.has_snapshot && (
-          <button className="flex items-center gap-1 text-[10px] font-mono text-text-ghost hover:text-kerala-teal transition-colors cursor-pointer">
+          <button className="flex items-center gap-1.5 text-[10px] font-mono text-text-ghost hover:text-kerala-teal transition-colors cursor-pointer">
             <Camera className="w-3 h-3" />
             Evidence
           </button>
         )}
-        <button className="flex items-center gap-1 text-[10px] font-mono text-text-ghost hover:text-signal-safe transition-colors cursor-pointer ml-auto">
+        <button className="flex items-center gap-1.5 text-[10px] font-mono text-text-ghost hover:text-signal-safe transition-colors cursor-pointer ml-auto">
           <Check className="w-3 h-3" />
           Acknowledge
         </button>

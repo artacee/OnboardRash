@@ -3,7 +3,7 @@
 // ============================================================
 
 import { motion } from 'framer-motion'
-import { Download, RefreshCw, Filter, Camera, Video } from 'lucide-react'
+import { Download, Filter, Camera, Video } from 'lucide-react'
 import { useEventStore } from '@/stores/useEventStore'
 import { GlassPanel } from '@/components/ui/GlassPanel'
 import { Badge } from '@/components/ui/Badge'
@@ -21,11 +21,11 @@ export function EventTable() {
   return (
     <GlassPanel variant="strong" noPadding className="overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border-subtle flex-wrap gap-3">
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-text-ghost" />
-          <h3 className="font-display font-semibold text-sm">Event History</h3>
-          <span className="text-xs font-mono text-text-ghost bg-surface-2 px-2 py-0.5 rounded-full">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border-subtle flex-wrap gap-4">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <Filter className="w-4 h-4 text-text-ghost flex-shrink-0" />
+          <h3 className="font-display font-semibold text-sm whitespace-nowrap">Event History</h3>
+          <span className="text-xs font-mono text-text-ghost bg-surface-2 px-2 py-0.5 rounded-full flex-shrink-0">
             {events.length}
           </span>
         </div>
@@ -75,7 +75,7 @@ export function EventTable() {
               {['Time', 'Bus', 'Event', 'Severity', 'Speed', 'Location', 'Evidence'].map((h) => (
                 <th
                   key={h}
-                  className="text-left text-[11px] font-mono uppercase tracking-wider text-text-ghost px-5 py-3"
+                  className="text-left text-[11px] font-mono uppercase tracking-wider text-text-ghost px-4 py-3 whitespace-nowrap"
                 >
                   {h}
                 </th>
@@ -104,38 +104,45 @@ export function EventTable() {
                     transition={{ delay: i * 0.03, duration: 0.3 }}
                     className="border-b border-border-subtle/50 hover:bg-surface-1/30 transition-colors cursor-pointer"
                   >
-                    <td className="px-5 py-3 text-sm font-mono text-text-secondary">
+                    <td className="px-4 py-3 text-sm font-mono text-text-secondary whitespace-nowrap">
                       {formatTime(event.timestamp)}
                     </td>
-                    <td className="px-5 py-3 text-sm font-mono font-medium">
-                      {event.bus_registration || `Bus ${event.bus_id}`}
-                    </td>
-                    <td className="px-5 py-3 text-sm">
-                      <span className="flex items-center gap-1.5">
-                        <span>{config.icon}</span>
-                        <span>{config.label}</span>
+                    <td className="px-4 py-3 text-sm font-mono font-medium whitespace-nowrap">
+                      <span className="truncate max-w-[100px] inline-block align-middle">
+                        {event.bus_registration || `Bus ${event.bus_id}`}
                       </span>
                     </td>
-                    <td className="px-5 py-3">
+                    <td className="px-4 py-3 text-sm">
+                      <span className="flex items-center gap-1.5 whitespace-nowrap">
+                        <span className="flex-shrink-0">{config.icon}</span>
+                        <span className="truncate max-w-[120px]">{config.label}</span>
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
                       <Badge severity={event.severity}>{event.severity}</Badge>
                     </td>
-                    <td className="px-5 py-3 text-sm font-mono text-text-secondary">
+                    <td className="px-4 py-3 text-sm font-mono text-text-secondary whitespace-nowrap">
                       {event.speed ? `${event.speed.toFixed(0)} km/h` : '—'}
                     </td>
-                    <td className="px-5 py-3 text-sm text-text-secondary max-w-[150px] truncate">
-                      {formatLocation(event.location)}
+                    <td className="px-4 py-3 text-sm text-text-secondary">
+                      <span className="truncate max-w-[140px] inline-block align-middle" title={formatLocation(event.location)}>
+                        {formatLocation(event.location)}
+                      </span>
                     </td>
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-1.5">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
                         {event.has_snapshot && (
                           <span className="text-kerala-teal" title="Snapshot available">
-                            <Camera className="w-3.5 h-3.5" />
+                            <Camera className="w-4 h-4" />
                           </span>
                         )}
                         {event.has_video && (
                           <span className="text-signal-info" title="Video available">
-                            <Video className="w-3.5 h-3.5" />
+                            <Video className="w-4 h-4" />
                           </span>
+                        )}
+                        {!event.has_snapshot && !event.has_video && (
+                          <span className="text-text-ghost">—</span>
                         )}
                       </div>
                     </td>

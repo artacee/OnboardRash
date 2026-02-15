@@ -2,7 +2,6 @@
 // CommandPalette — ⌘K fuzzy search dialog
 // ============================================================
 
-import { useEffect } from 'react'
 import { Command } from 'cmdk'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -102,7 +101,7 @@ function CommandItem({
   onSelect,
 }: {
   children: React.ReactNode
-  icon: React.ElementType
+  icon: React.ComponentType<{ className?: string }>
   onSelect: () => void
 }) {
   return (

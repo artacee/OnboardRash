@@ -32,7 +32,7 @@ function computeThreatLevel(stats: Stats): ThreatLevel {
   return 'safe'
 }
 
-export const useEventStore = create<EventState>((set, get) => ({
+export const useEventStore = create<EventState>((set) => ({
   events: [],
   alerts: [],
   stats: { total_buses: 0, active_buses: 0, today_events: 0, high_severity: 0 },

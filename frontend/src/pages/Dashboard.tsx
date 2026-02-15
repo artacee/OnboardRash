@@ -1,6 +1,5 @@
 // ============================================================
-// Dashboard Page — The Command Center main view
-// Stats + Map + Alerts + Event Table
+// Dashboard Page — Command Center Main View
 // ============================================================
 
 import { motion } from 'framer-motion'
@@ -9,20 +8,53 @@ import { FleetMap } from '@/components/dashboard/FleetMap'
 import { AlertFeed } from '@/components/dashboard/AlertFeed'
 import { EventTable } from '@/components/dashboard/EventTable'
 
+const pageVariants = {
+  hidden: { opacity: 0 },
+  show: { 
+    opacity: 1,
+    transition: { 
+      duration: 0.4,
+      staggerChildren: 0.1,
+    }
+  },
+}
+
+const sectionVariants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { 
+    opacity: 1, 
+    y: 0,
+    transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] }
+  },
+}
+
 export function Dashboard() {
   return (
-    <div className="space-y-6">
+    <motion.div 
+      variants={pageVariants}
+      initial="hidden"
+      animate="show"
+      className="space-y-8"
+    >
       {/* Stats Row */}
-      <StatsGrid />
+      <motion.section variants={sectionVariants}>
+        <StatsGrid />
+      </motion.section>
 
       {/* Map + Alerts Row */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-6" style={{ minHeight: '420px' }}>
+      <motion.section 
+        variants={sectionVariants}
+        className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-6"
+        style={{ minHeight: '480px' }}
+      >
         <FleetMap />
         <AlertFeed />
-      </div>
+      </motion.section>
 
       {/* Event History Table */}
-      <EventTable />
-    </div>
+      <motion.section variants={sectionVariants}>
+        <EventTable />
+      </motion.section>
+    </motion.div>
   )
 }

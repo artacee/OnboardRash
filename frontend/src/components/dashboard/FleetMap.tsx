@@ -7,7 +7,7 @@ import { motion } from 'framer-motion'
 import { MapPin, Navigation, Satellite } from 'lucide-react'
 import { useBusStore } from '@/stores/useBusStore'
 import { GlassPanel } from '@/components/ui/GlassPanel'
-import { cn } from '@/lib/utils'
+// cn utility available if needed
 
 export function FleetMap() {
   const locations = useBusStore((s) => s.locations)
@@ -15,15 +15,15 @@ export function FleetMap() {
   return (
     <GlassPanel variant="strong" noPadding className="h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-border-subtle">
-        <div className="flex items-center gap-2">
-          <MapPin className="w-4 h-4 text-kerala-teal" />
-          <h3 className="font-display font-semibold text-sm">Fleet Map</h3>
-          <span className="text-xs font-mono text-text-ghost bg-surface-2 px-2 py-0.5 rounded-full">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <MapPin className="w-4 h-4 text-kerala-teal flex-shrink-0" />
+          <h3 className="font-display font-semibold text-sm whitespace-nowrap">Fleet Map</h3>
+          <span className="text-[10px] font-mono text-text-ghost bg-surface-2 px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
             {locations.length} active
           </span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-shrink-0">
           <button className="p-1.5 rounded-md hover:bg-surface-1 text-text-ghost hover:text-text-secondary transition-colors cursor-pointer">
             <Navigation className="w-3.5 h-3.5" />
           </button>
@@ -82,9 +82,9 @@ export function FleetMap() {
                     <span className="relative flex w-3 h-3 rounded-full bg-kerala-teal shadow-[0_0_8px_rgba(13,148,136,0.5)]" />
 
                     {/* Tooltip */}
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                       <div className="bg-surface-2 border border-border-subtle rounded-lg px-2.5 py-1.5 text-[10px] font-mono whitespace-nowrap shadow-lg">
-                        <div className="font-semibold">{loc.bus_registration}</div>
+                        <div className="font-semibold truncate max-w-[80px]">{loc.bus_registration}</div>
                         <div className="text-text-ghost">{loc.speed?.toFixed(0) ?? '?'} km/h</div>
                       </div>
                     </div>

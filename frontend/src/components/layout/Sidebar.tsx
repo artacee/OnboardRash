@@ -1,8 +1,8 @@
 // ============================================================
-// Sidebar — Collapsible navigation rail
+// Sidebar — Premium HUD Navigation Rail
 // ============================================================
 
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard,
@@ -11,7 +11,6 @@ import {
   AlertTriangle,
   Users,
   Settings,
-  ChevronLeft,
   ChevronRight,
   Zap,
 } from 'lucide-react'
@@ -34,77 +33,154 @@ export function Sidebar() {
   return (
     <motion.aside
       initial={false}
-      animate={{ width: collapsed ? 72 : 240 }}
-      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="fixed left-0 top-0 bottom-0 z-20 flex flex-col bg-surface-0 border-r border-border-subtle"
+      animate={{ width: collapsed ? 80 : 260 }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      className="fixed left-0 top-0 bottom-0 z-20 flex flex-col glass-strong"
     >
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-4 h-16 border-b border-border-subtle">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-ksrtc-crimson to-ksrtc-glow flex items-center justify-center flex-shrink-0">
-          <Zap className="w-4 h-4 text-white" />
-        </div>
+      {/* Subtle gradient border on right edge */}
+      <div className="absolute right-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-kerala-teal/20 to-transparent" />
+
+      {/* Logo Section */}
+      <div className="flex items-center gap-4 px-5 h-20 border-b border-border-subtle relative">
+        {/* Animated logo */}
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-ksrtc-crimson via-ksrtc-glow to-ksrtc-crimson bg-[length:200%_200%] animate-gradient-slow flex items-center justify-center flex-shrink-0 shadow-glow-crimson/20"
+        >
+          <Zap className="w-5 h-5 text-white" />
+          {/* Pulse ring */}
+          <span className="absolute inset-0 rounded-xl animate-ping-slow bg-ksrtc-crimson/30" />
+        </motion.div>
+        
         <AnimatePresence>
           {!collapsed && (
             <motion.div
-              initial={{ opacity: 0, x: -10 }}
+              initial={{ opacity: 0, x: -12 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
-              transition={{ duration: 0.2 }}
+              exit={{ opacity: 0, x: -12 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
               className="overflow-hidden"
             >
-              <h1 className="font-display font-bold text-sm tracking-tight whitespace-nowrap gradient-text-crimson">
+              <h1 className="font-display font-bold text-base tracking-tight whitespace-nowrap gradient-text-crimson">
                 OnboardRash
               </h1>
-              <p className="text-[10px] text-text-ghost whitespace-nowrap">KSRTC Command</p>
+              <p className="text-[10px] text-text-ghost font-mono tracking-wider whitespace-nowrap uppercase">
+                KSRTC Command
+              </p>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
       {/* Nav Items */}
-      <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
-        {navItems.map((item) => (
+      <nav className="flex-1 py-5 px-3 space-y-1.5 overflow-y-auto scrollbar-thin">
+        {navItems.map((item, index) => (
           <NavLink
             key={item.path}
             to={item.path}
             end={item.end}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group',
-                'text-text-secondary hover:text-text-primary hover:bg-surface-1',
-                isActive && 'bg-surface-1 text-text-primary border border-border-subtle shadow-sm'
+                'relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 group',
+                'text-text-secondary hover:text-text-primary',
+                !isActive && 'hover:bg-surface-1/50',
+                isActive && 'bg-surface-2/80 text-text-primary shadow-lg'
               )
             }
           >
-            <item.icon
-              className={cn(
-                'w-5 h-5 flex-shrink-0 transition-colors',
-                'group-hover:text-kerala-teal'
-              )}
-            />
-            <AnimatePresence>
-              {!collapsed && (
-                <motion.span
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  transition={{ duration: 0.15 }}
-                  className="text-sm font-medium whitespace-nowrap"
+            {({ isActive }) => (
+              <>
+                {/* Active indicator bar */}
+                {isActive && (
+                  <motion.div
+                    layoutId="sidebar-active"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-kerala-teal via-kerala-teal to-kerala-teal/50 rounded-full shadow-glow-teal/50"
+                    transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                  />
+                )}
+                
+                {/* Icon with glow on hover/active */}
+                <motion.div
+                  initial={{ scale: 1 }}
+                  animate={{ scale: isActive ? 1.05 : 1 }}
+                  transition={{ duration: 0.2 }}
+                  className={cn(
+                    'relative flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 transition-all duration-300',
+                    isActive ? 'bg-kerala-teal/10' : 'group-hover:bg-surface-2/50'
+                  )}
                 >
-                  {item.label}
-                </motion.span>
-              )}
-            </AnimatePresence>
+                  <item.icon
+                    className={cn(
+                      'w-[18px] h-[18px] transition-colors duration-300',
+                      isActive ? 'text-kerala-teal' : 'group-hover:text-kerala-teal/80'
+                    )}
+                  />
+                  {/* Subtle glow behind icon when active */}
+                  {isActive && (
+                    <div className="absolute inset-0 rounded-lg bg-kerala-teal/20 blur-md -z-10" />
+                  )}
+                </motion.div>
+                
+                {/* Label */}
+                <AnimatePresence>
+                  {!collapsed && (
+                    <motion.span
+                      initial={{ opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -12 }}
+                      transition={{ duration: 0.2, delay: index * 0.02 }}
+                      className={cn(
+                        'text-[13px] font-medium whitespace-nowrap overflow-hidden text-ellipsis transition-colors duration-300',
+                        isActive && 'text-text-primary'
+                      )}
+                    >
+                      {item.label}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+
+                {/* Hover highlight */}
+                {!isActive && (
+                  <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/0 via-white/[0.02] to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                )}
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
 
+      {/* System Status Footer */}
+      <AnimatePresence>
+        {!collapsed && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="px-5 py-4 border-t border-border-subtle"
+          >
+            <div className="flex items-center justify-between text-[10px] font-mono text-text-ghost uppercase tracking-wider">
+              <span>System Status</span>
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-signal-safe animate-pulse" />
+                <span className="text-signal-safe">Operational</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Collapse Toggle */}
       <button
         onClick={toggle}
-        className="flex items-center justify-center h-12 border-t border-border-subtle text-text-ghost hover:text-text-secondary transition-colors cursor-pointer"
+        className="flex items-center justify-center h-14 border-t border-border-subtle text-text-ghost hover:text-kerala-teal hover:bg-surface-1/30 transition-all duration-300 cursor-pointer group"
       >
-        {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        <motion.div
+          animate={{ rotate: collapsed ? 0 : 180 }}
+          transition={{ duration: 0.3 }}
+        >
+          <ChevronRight className="w-4 h-4 group-hover:scale-110 transition-transform" />
+        </motion.div>
       </button>
     </motion.aside>
   )
