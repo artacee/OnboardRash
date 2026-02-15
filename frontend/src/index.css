@@ -1,0 +1,31 @@
+/**
+ * OnboardRash Frontend — Main Stylesheet
+ * 
+ * Import order:
+ * 1. Tailwind CSS v4 (utility classes)
+ * 2. Design System (CSS variables, base styles, Vision OS components)
+ * 3. Animations (keyframes and animation utilities)
+ */
+
+/* ═══════════════════════════════════════════════════
+   TAILWIND CSS v4
+   ═══════════════════════════════════════════════════ */
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════
+   DESIGN SYSTEM
+   Vision OS design tokens, glass materials, components
+   ═══════════════════════════════════════════════════ */
+@import "./styles/design-system.css";
+
+/* ═══════════════════════════════════════════════════
+   ANIMATIONS
+   CSS keyframes and animation utilities
+   ═══════════════════════════════════════════════════ */
+@import "./styles/animations.css";
+
+/* ═══════════════════════════════════════════════════
+   LEAFLET CSS (for map component)
+   Required for react-leaflet map functionality
+   ═══════════════════════════════════════════════════ */
+@import "leaflet/dist/leaflet.css";

@@ -1,0 +1,781 @@
+/* ═══════════════════════════════════════════════════════════════════
+   OnboardRash Frontend — Apple visionOS Design System
+   Vision OS Floating Windows + Glassmorphism + Light Mode
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════
+   CSS VARIABLES — Design Tokens
+   ═══════════════════════════════════════════════════ */
+
+:root {
+  /* ─────────────────────────────────────────────────
+     ANIMATED GRADIENT BACKGROUNDS — Soft & Pastel
+     These create a living, breathing atmosphere that's
+     LIGHT and airy. Think Apple's visionOS light mode.
+     ───────────────────────────────────────────────── */
+  
+  /* Base atmosphere — soft cool white */
+  --bg-base: #f5f7fa;
+  
+  /* Primary orb — soft lavender/purple gradient */
+  --gradient-orb-1: radial-gradient(
+    ellipse 70% 50% at 45% 35%,
+    rgba(138, 117, 234, 0.12) 0%,     /* Soft lavender */
+    rgba(159, 122, 234, 0.08) 30%,    /* Light purple */
+    rgba(180, 140, 230, 0.04) 60%,    /* Pale purple */
+    transparent 85%
+  );
+  
+  /* Secondary orb — soft teal/mint glow */
+  --gradient-orb-2: radial-gradient(
+    circle at 25% 65%,
+    rgba(100, 210, 255, 0.10) 0%,     /* Soft cyan */
+    rgba(150, 220, 255, 0.06) 40%,    /* Light sky blue */
+    transparent 75%
+  );
+  
+  /* Accent orb — soft rose/peach */
+  --gradient-orb-3: radial-gradient(
+    circle at 75% 25%,
+    rgba(255, 168, 200, 0.10) 0%,     /* Soft pink */
+    rgba(255, 200, 220, 0.06) 40%,    /* Light rose */
+    transparent 70%
+  );
+  
+  /* Fourth orb — soft amber/cream accent */
+  --gradient-orb-4: radial-gradient(
+    ellipse at 60% 80%,
+    rgba(255, 220, 150, 0.08) 0%,     /* Soft amber */
+    rgba(255, 240, 200, 0.04) 50%,    /* Cream */
+    transparent 75%
+  );
+  
+  /* ─────────────────────────────────────────────────
+     GLASS MATERIALS — 4-Tier System (Vision OS)
+     
+     CRITICAL: Tier 0 is for PAGE WINDOWS only!
+     Tier 1-3 go INSIDE Tier 0 containers.
+     ───────────────────────────────────────────────── */
+  
+  /* Tier 0 — Page Window Frame (THE FLOATING PAGE CONTAINER) */
+  --glass-t0-bg: rgba(255, 255, 255, 0.70);
+  --glass-t0-bg-hover: rgba(255, 255, 255, 0.80);
+  --glass-t0-blur: blur(60px) saturate(180%);
+  --glass-t0-border: 1.5px solid rgba(255, 255, 255, 0.60);
+  --glass-t0-radius: 36px;
+  --glass-t0-padding: 64px;
+  --glass-t0-padding-mobile: 24px;
+  --glass-t0-margin: 40px;
+  --glass-t0-margin-mobile: 16px;
+  --glass-t0-shadow: 
+    0 32px 80px rgba(0, 0, 0, 0.08),
+    0 16px 40px rgba(0, 0, 0, 0.04),
+    0 0 1px rgba(255, 255, 255, 0.8) inset;
+  
+  /* Tier 1 — Primary Glass (main sections within window) */
+  --glass-t1-bg: rgba(255, 255, 255, 0.50);
+  --glass-t1-bg-hover: rgba(255, 255, 255, 0.65);
+  --glass-t1-blur: blur(24px) saturate(160%);
+  --glass-t1-border: 1px solid rgba(255, 255, 255, 0.40);
+  --glass-t1-radius: 20px;
+  
+  /* Tier 2 — Secondary Glass (nested elements) */
+  --glass-t2-bg: rgba(255, 255, 255, 0.35);
+  --glass-t2-bg-hover: rgba(255, 255, 255, 0.50);
+  --glass-t2-blur: blur(12px) saturate(140%);
+  --glass-t2-border: 1px solid rgba(255, 255, 255, 0.30);
+  --glass-t2-radius: 12px;
+  
+  /* Tier 3 — Clear Glass (over media/maps) */
+  --glass-t3-bg: rgba(255, 255, 255, 0.60);
+  --glass-t3-blur: blur(40px) saturate(200%);
+  --glass-t3-border: 1px solid rgba(255, 255, 255, 0.40);
+  --glass-t3-radius: 16px;
+
+  /* Legacy aliases for backward compat (map to Tier 1) */
+  --glass-primary: var(--glass-t1-bg);
+  --glass-secondary: var(--glass-t2-bg);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  
+  /* ─────────────────────────────────────────────────
+     TEXT COLORS — visionOS Vibrancy System (Light Mode)
+     
+     Dark text on light background. Use opacity for hierarchy.
+     visionOS pulls ambient color into text — we 
+     approximate with opacity and subtle color tinting.
+     ───────────────────────────────────────────────── */
+  --text-primary: rgba(0, 0, 0, 0.95);          /* Primary — titles, values */
+  --text-secondary: rgba(0, 0, 0, 0.70);        /* Secondary — body, labels */
+  --text-tertiary: rgba(0, 0, 0, 0.50);         /* Tertiary — captions, hints */
+  --text-quaternary: rgba(0, 0, 0, 0.30);       /* Quaternary — disabled */
+  
+  /* ─────────────────────────────────────────────────
+     SEMANTIC COLORS — Alert/Status System
+     
+     These use slightly desaturated, softer tones 
+     than typical Material/Bootstrap. Apple uses 
+     gentler alerts that don't scream.
+     ───────────────────────────────────────────────── */
+  --color-safe: #34d399;        /* Green — normal driving */
+  --color-safe-bg: rgba(52, 211, 153, 0.12);
+  --color-warning: #fbbf24;     /* Amber — MEDIUM severity */
+  --color-warning-bg: rgba(251, 191, 36, 0.12);
+  --color-danger: #f87171;      /* Red (softer) — HIGH severity */
+  --color-danger-bg: rgba(248, 113, 113, 0.12);
+  --color-info: #60a5fa;        /* Blue — informational */
+  --color-info-bg: rgba(96, 165, 250, 0.12);
+  
+  /* Ambient glow colors (for box-shadow on severity badges) */
+  --glow-safe: 0 0 20px rgba(52, 211, 153, 0.3);
+  --glow-warning: 0 0 20px rgba(251, 191, 36, 0.3);
+  --glow-danger: 0 0 20px rgba(248, 113, 113, 0.4);
+  --glow-danger-pulse: 0 0 30px rgba(248, 113, 113, 0.6);
+
+  /* ─────────────────────────────────────────────────
+     NOISE TEXTURE — Adds analog warmth to glass
+     
+     Apply as an overlay at 3-5% opacity on glass 
+     elements. This is what makes Apple's glass feel 
+     "real" vs sterile CSS blur.
+     ───────────────────────────────────────────────── */
+  --noise-texture: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+
+  /* ─────────────────────────────────────────────────
+     TYPOGRAPHY SCALE (visionOS Spatial Rules)
+     
+     visionOS uses bolder weights than iOS. Body text 
+     is Medium (500), not Regular (400). Titles are 
+     Bold (700), not Semibold (600).
+     ───────────────────────────────────────────────── */
+  
+  /* Font Family — Apple system stack */
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
+    'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text',
+    'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'SF Mono', 'JetBrains Mono', 'Fira Code', 
+    Menlo, Monaco, monospace;
+
+  /* ── Extra Large Titles (visionOS exclusive) ───────── */
+  --text-display-1: clamp(3.5rem, 3rem + 3vw, 6rem);     /* 56-96px */
+  --text-display-2: clamp(2.5rem, 2rem + 2.5vw, 4.5rem); /* 40-72px */
+  
+  /* ── Standard Title Hierarchy ──────────────────────── */
+  --text-title-1: clamp(2rem, 1.75rem + 1.25vw, 3rem);   /* 32-48px */
+  --text-title-2: clamp(1.5rem, 1.35rem + 0.75vw, 2rem); /* 24-32px */
+  --text-title-3: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem); /* 20-24px */
+  
+  /* ── Body & UI Text ────────────────────────────────── */
+  --text-body: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);  /* 16-18px */
+  --text-callout: clamp(0.9375rem, 0.9rem + 0.2vw, 1rem);/* 15-16px */
+  --text-footnote: clamp(0.8125rem, 0.78rem + 0.15vw, 0.875rem); /* 13-14px */
+  --text-caption: 0.75rem;                                 /* 12px */
+  
+  /* ── Weights (visionOS spatial — one step bolder) ──── */
+  --weight-body: 500;      /* Medium (not Regular 400) */
+  --weight-headline: 600;  /* Semibold */
+  --weight-title: 700;     /* Bold (not Semibold 600) */
+  --weight-display: 800;   /* Extrabold for hero text */
+  
+  /* ── Letter Spacing (tighter for display, normal for body) ── */
+  --tracking-tight: -0.02em;   /* Display and titles */
+  --tracking-normal: -0.01em;  /* Body text */
+  --tracking-wide: 0.04em;     /* Captions, labels */
+  
+  /* ── Line Heights ──────────────────────────────────── */
+  --leading-none: 1;        /* Display text */
+  --leading-tight: 1.15;    /* Titles */
+  --leading-snug: 1.35;     /* Subheadings */
+  --leading-normal: 1.5;    /* Body text */
+  --leading-relaxed: 1.65;  /* Long-form content */
+
+  /* ─────────────────────────────────────────────────
+     SPACING SCALE (4px base unit)
+     ───────────────────────────────────────────────── */
+  --space-1: 0.25rem;   /* 4px  — micro gap */
+  --space-2: 0.5rem;    /* 8px  — tight gap */
+  --space-3: 0.75rem;   /* 12px — element gap */
+  --space-4: 1rem;      /* 16px — standard gap */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px — component gap */
+  --space-8: 2rem;      /* 32px — section padding */
+  --space-10: 2.5rem;   /* 40px */
+  --space-12: 3rem;     /* 48px — large section gap */
+  --space-16: 4rem;     /* 64px — section margin */
+  --space-20: 5rem;     /* 80px — page section gap */
+  --space-24: 6rem;     /* 96px — hero spacing */
+  
+  /* Content constraints */
+  --content-max: 1400px;   /* Max content width */
+  --sidebar-width: 280px;  /* Dashboard sidebar */
+  --sidebar-collapsed: 72px;
+  --navbar-height: 64px;
+
+  /* ─────────────────────────────────────────────────
+     SHADOW & DEPTH SYSTEM (6 Levels + Page Window)
+     
+     visionOS auto-generates shadows based on element 
+     elevation. Each level adds both a drop shadow 
+     (below) and an inner glow (subtle light on top 
+     edge) for realism.
+     ───────────────────────────────────────────────── */
+  
+  /* Level 0 — Page Window (MOST DRAMATIC — for Tier 0 glass) */
+  --shadow-0-page-window:
+    0 32px 80px rgba(0, 0, 0, 0.10),
+    0 16px 40px rgba(0, 0, 0, 0.06),
+    0 8px 20px rgba(0, 0, 0, 0.04),
+    0 0 1px rgba(255, 255, 255, 0.8) inset;
+  
+  /* Level 1 — Grounded (table rows, list items) */
+  --shadow-1: none;
+  
+  /* Level 2 — Resting (cards, inputs) */
+  --shadow-2:
+    0 2px 8px rgba(0, 0, 0, 0.06),
+    0 1px 3px rgba(0, 0, 0, 0.04);
+  
+  /* Level 3 — Raised (hovered cards, active elements) */
+  --shadow-3:
+    0 6px 20px rgba(0, 0, 0, 0.08),
+    0 3px 8px rgba(0, 0, 0, 0.05),
+    0 0 1px rgba(255, 255, 255, 0.6) inset;
+  
+  /* Level 4 — Floating (navbar, sidebar, popovers) */
+  --shadow-4:
+    0 10px 40px rgba(0, 0, 0, 0.10),
+    0 5px 12px rgba(0, 0, 0, 0.06),
+    0 0 1px rgba(255, 255, 255, 0.7) inset;
+  
+  /* Level 5 — Elevated (modals, dropdowns) */
+  --shadow-5:
+    0 20px 60px rgba(0, 0, 0, 0.12),
+    0 10px 20px rgba(0, 0, 0, 0.08),
+    0 0 1px rgba(255, 255, 255, 0.8) inset;
+  
+  /* Level 6 — Dramatic (hero elements, focus states) */
+  --shadow-6:
+    0 24px 64px rgba(0, 0, 0, 0.15),
+    0 12px 24px rgba(0, 0, 0, 0.10),
+    0 0 1px rgba(255, 255, 255, 0.9) inset;
+    
+  /* Glass-specific shadow (with colored tint) */
+  --shadow-glass:
+    0 8px 32px rgba(100, 150, 200, 0.08),
+    0 0 1px rgba(255, 255, 255, 0.6) inset;
+
+  /* ─────────────────────────────────────────────────
+     BORDER RADIUS (visionOS Continuous Corners)
+     
+     Apple uses continuous corners (squircles), not 
+     standard border-radius. We use generous radii 
+     that approximate the feel.
+     ───────────────────────────────────────────────── */
+  --radius-xs: 6px;     /* Tiny elements, badges */
+  --radius-sm: 8px;     /* Buttons, chips */
+  --radius-md: 12px;    /* Input fields, small cards */
+  --radius-lg: 16px;    /* Standard cards */
+  --radius-xl: 22px;    /* Main containers (visionOS window feel) */
+  --radius-2xl: 28px;   /* Large cards, hero containers */
+  --radius-3xl: 36px;   /* Full-width sections */
+  --radius-full: 9999px; /* Pills, circular buttons */
+
+  /* ─────────────────────────────────────────────────
+     EASING & TIMING
+     ───────────────────────────────────────────────── */
+  
+  /* Apple's signature easing curves */
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);    /* Standard */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);            /* Accelerate */
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);           /* Decelerate */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* Bouncy spring */
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);     /* Buttery smooth */
+  
+  /* Duration scale */
+  --duration-instant: 100ms;  /* Hover states */
+  --duration-fast: 200ms;     /* Button press, focus */
+  --duration-normal: 350ms;   /* Card transitions */
+  --duration-slow: 500ms;     /* Page transitions */
+  --duration-dramatic: 800ms; /* Hero reveals */
+}
+
+
+/* ═══════════════════════════════════════════════════
+   BASE STYLES
+   ═══════════════════════════════════════════════════ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  font-family: var(--font-body);
+  font-size: 16px;
+  color: var(--text-primary);
+  background: var(--bg-base);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-height: 100vh;
+}
+
+
+/* ═══════════════════════════════════════════════════
+   ROOT CONTAINER
+   ═══════════════════════════════════════════════════ */
+
+.app-root {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+
+/* ═══════════════════════════════════════════════════
+   ANIMATED BACKGROUND (The Atmosphere)
+   ═══════════════════════════════════════════════════ */
+
+.atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--bg-base);
+  overflow: hidden;
+}
+
+/* Gradient Orbs */
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 1;
+  will-change: transform;
+}
+
+.orb-1 {
+  width: 70vw;
+  height: 70vw;
+  top: -25%;
+  left: -15%;
+  background: radial-gradient(
+    circle,
+    rgba(138, 43, 226, 0.35) 0%,
+    rgba(102, 126, 234, 0.25) 35%,
+    rgba(118, 75, 162, 0.12) 65%,
+    transparent 90%
+  );
+}
+
+.orb-2 {
+  width: 60vw;
+  height: 60vw;
+  bottom: -20%;
+  right: -15%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 73, 168, 0.28) 0%,
+    rgba(250, 112, 154, 0.18) 40%,
+    transparent 75%
+  );
+}
+
+.orb-3 {
+  width: 55vw;
+  height: 55vw;
+  top: 40%;
+  left: -10%;
+  background: radial-gradient(
+    circle,
+    rgba(0, 242, 254, 0.25) 0%,
+    rgba(79, 172, 254, 0.15) 45%,
+    transparent 80%
+  );
+}
+
+.orb-4 {
+  width: 50vw;
+  height: 50vw;
+  top: 20%;
+  right: 15%;
+  background: radial-gradient(
+    ellipse,
+    rgba(255, 179, 0, 0.18) 0%,
+    rgba(254, 225, 64, 0.10) 50%,
+    transparent 80%
+  );
+}
+
+/* Noise Overlay */
+.noise-overlay {
+  position: absolute;
+  inset: 0;
+  background-image: var(--noise-texture);
+  background-size: 256px 256px;
+  opacity: 0.05;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+
+
+/* ═══════════════════════════════════════════════════
+   PAGE WINDOW (Tier 0 — THE FLOATING CONTAINER)
+   This wraps EACH PAGE (Dashboard, Events, Settings)
+   ═══════════════════════════════════════════════════ */
+
+.page-window {
+  /* Tier 0 Glass Material */
+  background: var(--glass-t0-bg);
+  backdrop-filter: var(--glass-t0-blur);
+  -webkit-backdrop-filter: var(--glass-t0-blur);
+  
+  /* Window Frame Styling */
+  border: var(--glass-t0-border);
+  border-radius: var(--glass-t0-radius);
+  box-shadow: var(--shadow-0-page-window);
+  
+  /* Spacing (creates floating effect) */
+  margin: var(--glass-t0-margin);
+  padding: var(--glass-t0-padding);
+  
+  /* Size */
+  min-height: calc(100vh - calc(var(--glass-t0-margin) * 2));
+  width: calc(100vw - calc(var(--glass-t0-margin) * 2));
+  max-width: 1800px;
+  
+  /* Positioning */
+  position: relative;
+  overflow: hidden;
+  
+  /* Transitions */
+  transition: all 500ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Specular Highlight (Top Edge) */
+.page-window::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 5%;
+  right: 5%;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.0) 10%,
+    rgba(255, 255, 255, 0.9) 50%,
+    rgba(255, 255, 255, 0.0) 90%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+/* Left Edge Catch-light */
+.page-window::after {
+  content: '';
+  position: absolute;
+  top: 5%;
+  left: 0;
+  bottom: 5%;
+  width: 2px;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.8) 0%,
+    rgba(255, 255, 255, 0.2) 100%
+  );
+  pointer-events: none;
+}
+
+/* Grain Texture Inside Window */
+.window-grain {
+  position: absolute;
+  inset: 0;
+  background: var(--noise-texture);
+  background-size: 256px 256px;
+  opacity: 0.05;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Hover Effect (subtle lift) */
+.page-window:hover {
+  transform: translateY(-4px);
+  box-shadow: 
+    0 36px 90px rgba(0, 0, 0, 0.12),
+    0 18px 45px rgba(0, 0, 0, 0.08),
+    0 0 1px rgba(255, 255, 255, 0.9) inset;
+}
+
+/* Mobile Adaptation */
+@media (max-width: 768px) {
+  .page-window {
+    margin: var(--glass-t0-margin-mobile);
+    padding: var(--glass-t0-padding-mobile);
+    border-radius: 24px;
+    min-height: calc(100vh - calc(var(--glass-t0-margin-mobile) * 2));
+    width: calc(100vw - calc(var(--glass-t0-margin-mobile) * 2));
+  }
+}
+
+/* Page Content Container */
+.page-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+
+/* ═══════════════════════════════════════════════════
+   GLASS COMPONENTS (Tier 1-3 — Inside Page Window)
+   ═══════════════════════════════════════════════════ */
+
+/* Tier 1 Glass Card */
+.glass-card {
+  background: var(--glass-t1-bg);
+  backdrop-filter: var(--glass-t1-blur);
+  -webkit-backdrop-filter: var(--glass-t1-blur);
+  border: var(--glass-t1-border);
+  border-radius: var(--glass-t1-radius);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-2);
+  transition: all var(--duration-normal) var(--ease-default);
+  position: relative;
+}
+
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, 
+    transparent, rgba(255, 255, 255, 0.8), transparent);
+  pointer-events: none;
+}
+
+.glass-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-3);
+  background: var(--glass-t1-bg-hover);
+}
+
+/* Tier 2 Glass (nested elements) */
+.glass-nested {
+  background: var(--glass-t2-bg);
+  backdrop-filter: var(--glass-t2-blur);
+  -webkit-backdrop-filter: var(--glass-t2-blur);
+  border: var(--glass-t2-border);
+  border-radius: var(--glass-t2-radius);
+  padding: var(--space-4);
+  transition: all var(--duration-fast) var(--ease-default);
+}
+
+.glass-nested:hover {
+  background: var(--glass-t2-bg-hover);
+}
+
+/* Tier 3 Glass (over media/maps) */
+.glass-overlay {
+  background: var(--glass-t3-bg);
+  backdrop-filter: var(--glass-t3-blur);
+  -webkit-backdrop-filter: var(--glass-t3-blur);
+  border: var(--glass-t3-border);
+  border-radius: var(--glass-t3-radius);
+  padding: var(--space-4);
+}
+
+
+/* ═══════════════════════════════════════════════════
+   BUTTON STYLES
+   ═══════════════════════════════════════════════════ */
+
+.floating-button {
+  background: var(--glass-t1-bg);
+  backdrop-filter: var(--glass-t2-blur);
+  -webkit-backdrop-filter: var(--glass-t2-blur);
+  border: var(--glass-t1-border);
+  border-radius: var(--radius-full);
+  padding: var(--space-3) var(--space-8);
+  color: var(--text-primary);
+  font-weight: var(--weight-headline);
+  font-size: var(--text-body);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-default);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.floating-button:hover {
+  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.65);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+.floating-button:active {
+  transform: scale(0.98);
+}
+
+.button-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.floating-button:hover .button-glow {
+  opacity: 1;
+}
+
+
+/* ═══════════════════════════════════════════════════
+   INPUT STYLES
+   ═══════════════════════════════════════════════════ */
+
+.input-glass {
+  background: var(--glass-t2-bg);
+  backdrop-filter: var(--glass-t2-blur);
+  -webkit-backdrop-filter: var(--glass-t2-blur);
+  border: var(--glass-t2-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  color: var(--text-primary);
+  font-size: var(--text-body);
+  font-weight: var(--weight-body);
+  transition: all var(--duration-fast) var(--ease-default);
+  width: 100%;
+}
+
+.input-glass::placeholder {
+  color: var(--text-tertiary);
+}
+
+.input-glass:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.50);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.15);
+}
+
+
+/* ═══════════════════════════════════════════════════
+   UTILITY CLASSES
+   ═══════════════════════════════════════════════════ */
+
+/* Text utilities */
+.text-primary { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-tertiary { color: var(--text-tertiary); }
+.text-quaternary { color: var(--text-quaternary); }
+
+/* Font weights */
+.font-body { font-weight: var(--weight-body); }
+.font-headline { font-weight: var(--weight-headline); }
+.font-title { font-weight: var(--weight-title); }
+.font-display { font-weight: var(--weight-display); }
+
+/* Font sizes */
+.text-display-1 { font-size: var(--text-display-1); line-height: var(--leading-none); letter-spacing: var(--tracking-tight); }
+.text-display-2 { font-size: var(--text-display-2); line-height: var(--leading-tight); letter-spacing: var(--tracking-tight); }
+.text-title-1 { font-size: var(--text-title-1); line-height: var(--leading-tight); letter-spacing: var(--tracking-tight); }
+.text-title-2 { font-size: var(--text-title-2); line-height: var(--leading-snug); letter-spacing: var(--tracking-normal); }
+.text-title-3 { font-size: var(--text-title-3); line-height: var(--leading-snug); letter-spacing: var(--tracking-normal); }
+.text-body { font-size: var(--text-body); line-height: var(--leading-normal); letter-spacing: var(--tracking-normal); }
+.text-callout { font-size: var(--text-callout); line-height: var(--leading-normal); }
+.text-footnote { font-size: var(--text-footnote); line-height: var(--leading-normal); }
+.text-caption { font-size: var(--text-caption); line-height: var(--leading-snug); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+
+/* Severity badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-headline);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.badge-safe {
+  background: var(--color-safe-bg);
+  color: var(--color-safe);
+  box-shadow: var(--glow-safe);
+}
+
+.badge-warning {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  box-shadow: var(--glow-warning);
+}
+
+.badge-danger {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  box-shadow: var(--glow-danger);
+}
+
+.badge-info {
+  background: var(--color-info-bg);
+  color: var(--color-info);
+}
+
+
+/* ═══════════════════════════════════════════════════
+   RESPONSIVE UTILITIES
+   ═══════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  :root {
+    --space-8: 1.5rem;
+    --space-12: 2rem;
+    --space-16: 2.5rem;
+  }
+  
+  .text-display-1 { font-size: clamp(2.5rem, 2rem + 2.5vw, 4rem); }
+  .text-display-2 { font-size: clamp(2rem, 1.5rem + 2vw, 3rem); }
+}
+
+
+/* ═══════════════════════════════════════════════════
+   ACCESSIBILITY
+   ═══════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus visible styles */
+*:focus-visible {
+  outline: 2px solid rgba(0, 0, 0, 0.5);
+  outline-offset: 2px;
+}
+
+/* Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
