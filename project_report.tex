@@ -1,0 +1,232 @@
+\documentclass[11pt,a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[margin=0.9in]{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{tabularx}
+
+% Colors
+\definecolor{codeblue}{RGB}{0, 102, 204}
+\definecolor{codegray}{RGB}{100, 100, 100}
+\definecolor{backgray}{RGB}{245, 245, 245}
+
+% Code styling
+\lstset{
+    basicstyle=\ttfamily\small,
+    backgroundcolor=\color{backgray},
+    frame=single,
+    framerule=0pt,
+    breaklines=true
+}
+
+% Header/Footer
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{OnboardRash | Technical Overview}
+\rfoot{\thepage}
+
+\begin{document}
+
+% Title
+\begin{center}
+    {\LARGE\textbf{OnboardRash}}\\[0.3cm]
+    {\large Real-Time Rash Driving Detection System}\\[0.2cm]
+    {\color{codegray} Technical Overview Document}\\[0.5cm]
+    \hrule
+\end{center}
+
+\vspace{0.5cm}
+
+%==============================================================================
+\section*{Project Summary}
+%==============================================================================
+
+OnboardRash is an end-to-end IoT solution for detecting unsafe driving patterns in public transport. The system combines edge computing on Raspberry Pi with a cloud backend and real-time web dashboard.
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\textbf{Platform:} & Raspberry Pi 4 (Edge) + Flask Server (Cloud) \\
+\textbf{Communication:} & REST API over 4G/LTE + WebSocket for real-time \\
+\textbf{Database:} & SQLite (both edge \& cloud) \\
+\textbf{Dashboard:} & HTML/CSS/JavaScript with Leaflet.js maps \\
+\end{tabularx}
+
+%==============================================================================
+\section*{System Architecture}
+%==============================================================================
+
+\begin{lstlisting}
++-------------------+      HTTP/JSON      +------------------+
+|   BUS UNIT (Pi)   | ------------------> |  FLASK BACKEND   |
+|                   |                     |                  |
+| - MPU6050 (IMU)   |      WebSocket      | - REST API       |
+| - GPS Module      | <------------------ | - Socket.IO      |
+| - Camera          |                     | - SQLite DB      |
+| - Ultrasonic      |                     +--------+---------+
+| - Kalman Filter   |                              |
+| - Local SQLite    |                              v
++-------------------+                     +------------------+
+                                          |  WEB DASHBOARD   |
+                                          | - Live Map       |
+                                          | - Alert Panel    |
+                                          | - Events Table   |
+                                          +------------------+
+\end{lstlisting}
+
+%==============================================================================
+\section*{Hardware Stack}
+%==============================================================================
+
+\begin{tabular}{@{}llp{7cm}@{}}
+\toprule
+\textbf{Component} & \textbf{Model} & \textbf{Function} \\
+\midrule
+Microcontroller & Raspberry Pi 4 & Main processing unit \\
+IMU & MPU-6050 & 3-axis accelerometer (X/Y/Z in G-force) \\
+GPS & NEO-6M & Location \& speed tracking \\
+Camera & Pi Camera v3 & Front-facing, 640x480 @ 15fps \\
+Distance Sensor & HC-SR04 & Ultrasonic (left-side clearance) \\
+Connectivity & 4G LTE HAT & Cellular data transmission \\
+\bottomrule
+\end{tabular}
+
+%==============================================================================
+\section*{Detection Logic}
+%==============================================================================
+
+Events are triggered based on sensor thresholds:
+
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Event} & \textbf{Trigger} & \textbf{Severity} \\
+\midrule
+HARSH\_BRAKE & Accel X < -1.5g & HIGH if X < -1.8g \\
+HARSH\_ACCEL & Accel X > 1.0g & MEDIUM \\
+AGGRESSIVE\_TURN & Accel Y > 0.8g & HIGH if Y > 1.0g \\
+TAILGATING & Vehicle in frame > 15\% & MEDIUM \\
+CLOSE\_OVERTAKING & Distance < 100cm, duration > 0.5s & MEDIUM \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.3cm}
+\textbf{Sensor Fusion:} A Kalman Filter combines GPS speed with IMU acceleration for accurate velocity estimation, handling GPS dropouts and vibration noise.
+
+%==============================================================================
+\section*{API Endpoints}
+%==============================================================================
+
+\begin{tabular}{@{}llp{6cm}@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} & \textbf{Description} \\
+\midrule
+POST & /api/events & Receive event from bus unit \\
+GET & /api/events & List events (with filters) \\
+GET & /api/stats & Dashboard summary stats \\
+GET & /api/buses & List registered buses \\
+POST & /api/buses/\{id\}/location & Update bus GPS position \\
+GET & /api/buses/locations & All active bus positions \\
+GET & /api/export/events & CSV download \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.3cm}
+\textbf{Authentication:} API endpoints protected with \texttt{X-API-Key} header.
+
+%==============================================================================
+\section*{Data Flow}
+%==============================================================================
+
+\begin{enumerate}[noitemsep]
+    \item \textbf{Sensor Read:} Pi reads IMU, GPS, Camera, Ultrasonic at 10Hz
+    \item \textbf{Fusion:} Kalman filter fuses GPS speed with IMU acceleration
+    \item \textbf{Detection:} Logic engine checks thresholds for each event type
+    \item \textbf{Evidence:} If event detected, save 10s video clip + snapshot
+    \item \textbf{Queue:} Event JSON + media paths stored in local SQLite
+    \item \textbf{Sync:} Background thread uploads queued events via HTTP POST
+    \item \textbf{Broadcast:} Backend emits \texttt{new\_alert} via Socket.IO
+    \item \textbf{Dashboard:} JS client receives WebSocket event, updates UI
+\end{enumerate}
+
+%==============================================================================
+\section*{Offline Handling}
+%==============================================================================
+
+When 4G connectivity is lost:
+\begin{itemize}[noitemsep]
+    \item Events are stored in local SQLite queue (\texttt{events\_queue.db})
+    \item Background sync thread retries every 5 seconds
+    \item On reconnect, all queued events are uploaded in order
+    \item Dashboard receives backlogged events with original timestamps
+\end{itemize}
+
+%==============================================================================
+\section*{Dashboard Features}
+%==============================================================================
+
+\begin{tabular}{@{}lp{9cm}@{}}
+\toprule
+\textbf{Feature} & \textbf{Implementation} \\
+\midrule
+Live Map & Leaflet.js with CARTO dark tiles, bus markers refresh every 10s \\
+Real-time Alerts & Socket.IO client, audio beep for HIGH severity \\
+Events Table & Filterable by severity/type, paginated \\
+Stats Cards & Today's events, active buses, high severity count \\
+CSV Export & Server-side generation via /api/export \\
+Evidence Viewer & Modal popup for snapshots, video playback \\
+\bottomrule
+\end{tabular}
+
+%==============================================================================
+\section*{Tech Stack Summary}
+%==============================================================================
+
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Layer} & \textbf{Technologies} \\
+\midrule
+Edge (Pi) & Python 3, smbus2, pyserial, OpenCV, picamera2 \\
+Backend & Flask, Flask-SocketIO, SQLAlchemy, Flask-CORS \\
+Database & SQLite (file-based, both edge and cloud) \\
+Frontend & HTML5, CSS3, Vanilla JS, Socket.IO client, Leaflet.js \\
+Protocol & REST (JSON), WebSocket (Socket.IO) \\
+\bottomrule
+\end{tabular}
+
+%==============================================================================
+\section*{Metrics \& Testing}
+%==============================================================================
+
+\begin{itemize}[noitemsep]
+    \item Sensor sample rate: 10 Hz (100ms loop)
+    \item Event transmission latency: < 500ms (online)
+    \item Dashboard update rate: 10s (map), instant (alerts via WebSocket)
+    \item Simulator: 3 virtual buses generating events every 2s for testing
+\end{itemize}
+
+%==============================================================================
+\section*{Deployment}
+%==============================================================================
+
+\begin{lstlisting}
+# Start backend
+cd backend && python app.py
+
+# Start simulator (for testing without hardware)
+python simulator/simulator.py
+
+# OR run full demo (backend + dashboard + simulator)
+python demo.py
+\end{lstlisting}
+
+\vspace{0.5cm}
+\hrule
+\vspace{0.3cm}
+{\small\color{codegray} Prepared for internship project review | January 2026}
+
+\end{document}
