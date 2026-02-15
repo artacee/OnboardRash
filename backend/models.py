@@ -123,3 +123,132 @@ class BusLocation(db.Model):
             'heading': self.heading,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+
+
+# ==================== HELPER FUNCTIONS ====================
+
+def update_bus_location(bus_id, lat, lng, speed=None, heading=None):
+    """
+    Shared helper function to update or create bus location.
+    
+    Args:
+        bus_id: ID of the bus
+        lat: Latitude coordinate
+        lng: Longitude coordinate
+        speed: Optional speed in km/h
+        heading: Optional heading in degrees
+    
+    Returns:
+        BusLocation object
+    """
+    location = BusLocation.query.filter_by(bus_id=bus_id).first()
+    if location:
+        location.latitude = lat
+        location.longitude = lng
+        location.speed = speed
+        location.heading = heading
+        location.updated_at = datetime.utcnow()
+    else:
+        location = BusLocation(
+            bus_id=bus_id,
+            latitude=lat,
+            longitude=lng,
+            speed=speed,
+            heading=heading
+        )
+        db.session.add(location)
+    return location
+
+
+def get_or_create_bus(bus_id=None, registration_number=None):
+    """
+    Get existing bus or create new one.
+    
+    Args:
+        bus_id: Optional bus ID
+        registration_number: Optional registration number
+    
+    Returns:
+        Tuple of (Bus object or None, error message or None)
+    """
+    bus = None
+    
+    if bus_id:
+        bus = Bus.query.get(bus_id)
+    elif registration_number:
+        bus = Bus.query.filter_by(registration_number=registration_number).first()
+        if not bus:
+            # Auto-create bus if it doesn't exist
+            bus = Bus(registration_number=registration_number)
+            db.session.add(bus)
+            db.session.commit()
+    
+    if not bus:
+        return None, 'Bus not found and no registration provided'
+    
+    return bus, None
+
+
+def process_event_data(data):
+    """
+    Process incoming event data and create event in database.
+    Shared logic for event creation to avoid duplication.
+    
+    Args:
+        data: Dictionary with event data
+    
+    Returns:
+        Tuple of (DrivingEvent object or None, error dict or None)
+    """
+    if not data:
+        return None, {'error': 'No data provided'}
+    
+    # Get or create bus
+    bus, error = get_or_create_bus(
+        bus_id=data.get('bus_id'),
+        registration_number=data.get('bus_registration')
+    )
+    
+    if error:
+        return None, {'error': error}
+    
+    # Parse timestamp
+    timestamp = datetime.utcnow()
+    if 'timestamp' in data:
+        try:
+            timestamp = datetime.fromisoformat(data['timestamp'].replace('Z', '+00:00'))
+        except:
+            pass
+    
+    # Create event
+    event = DrivingEvent(
+        bus_id=bus.id,
+        event_type=data.get('event_type', 'UNKNOWN'),
+        severity=data.get('severity', 'MEDIUM'),
+        acceleration_x=data.get('acceleration_x'),
+        acceleration_y=data.get('acceleration_y'),
+        acceleration_z=data.get('acceleration_z'),
+        speed=data.get('speed'),
+        location_lat=data.get('location', {}).get('lat'),
+        location_lng=data.get('location', {}).get('lng'),
+        location_address=data.get('location', {}).get('address'),
+        timestamp=timestamp,
+        alert_sent=True
+    )
+    
+    db.session.add(event)
+    
+    # Update bus location if provided
+    location = data.get('location', {})
+    if location.get('lat') and location.get('lng'):
+        update_bus_location(
+            bus_id=bus.id,
+            lat=location['lat'],
+            lng=location['lng'],
+            speed=data.get('speed')
+        )
+    
+    db.session.commit()
+    
+    return event, None
+

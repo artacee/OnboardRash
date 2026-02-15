@@ -128,28 +128,21 @@ def update_location(bus_id):
         "heading": 180
     }
     """
+    from models import update_bus_location
+    
     bus = Bus.query.get_or_404(bus_id)
     data = request.get_json()
     
     if not data or not data.get('lat') or not data.get('lng'):
         return jsonify({'error': 'lat and lng are required'}), 400
     
-    location = BusLocation.query.filter_by(bus_id=bus_id).first()
-    if location:
-        location.latitude = data['lat']
-        location.longitude = data['lng']
-        location.speed = data.get('speed')
-        location.heading = data.get('heading')
-        location.updated_at = datetime.utcnow()
-    else:
-        location = BusLocation(
-            bus_id=bus_id,
-            latitude=data['lat'],
-            longitude=data['lng'],
-            speed=data.get('speed'),
-            heading=data.get('heading')
-        )
-        db.session.add(location)
+    location = update_bus_location(
+        bus_id=bus_id,
+        lat=data['lat'],
+        lng=data['lng'],
+        speed=data.get('speed'),
+        heading=data.get('heading')
+    )
     
     db.session.commit()
     

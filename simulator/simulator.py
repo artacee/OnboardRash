@@ -12,13 +12,22 @@ import random
 import math
 import requests
 import json
+import os
 from datetime import datetime
 
+# Try to load environment variables (optional)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # dotenv not installed, use defaults
+    pass
+
 # Configuration
-SERVER_URL = "http://localhost:5000"
-SIMULATION_INTERVAL = 2.0  # seconds between updates
-EVENT_PROBABILITY = 0.15   # 15% chance of rash event per update
-API_KEY = "default-secure-key-123"  # Must match backend
+SERVER_URL = os.getenv('SERVER_URL', 'http://localhost:5000')
+SIMULATION_INTERVAL = float(os.getenv('SIMULATION_INTERVAL', '2.0'))
+EVENT_PROBABILITY = float(os.getenv('EVENT_PROBABILITY', '0.15'))
+API_KEY = os.getenv('API_KEY', 'default-secure-key-123')
 
 
 class BusSimulator:

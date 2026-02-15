@@ -31,71 +31,13 @@ def receive_event():
         "timestamp": "2026-01-21T15:30:00"  // optional, uses server time if not provided
     }
     """
+    from models import process_event_data
+    
     data = request.get_json()
+    event, error = process_event_data(data)
     
-    if not data:
-        return jsonify({'error': 'No data provided'}), 400
-    
-    # Get or create bus
-    bus = None
-    if 'bus_id' in data:
-        bus = Bus.query.get(data['bus_id'])
-    elif 'bus_registration' in data:
-        bus = Bus.query.filter_by(registration_number=data['bus_registration']).first()
-        if not bus:
-            # Auto-create bus if it doesn't exist
-            bus = Bus(registration_number=data['bus_registration'])
-            db.session.add(bus)
-            db.session.commit()
-    
-    if not bus:
-        return jsonify({'error': 'Bus not found and no registration provided'}), 400
-    
-    # Parse timestamp
-    timestamp = datetime.utcnow()
-    if 'timestamp' in data:
-        try:
-            timestamp = datetime.fromisoformat(data['timestamp'].replace('Z', '+00:00'))
-        except:
-            pass
-    
-    # Create event
-    event = DrivingEvent(
-        bus_id=bus.id,
-        event_type=data.get('event_type', 'UNKNOWN'),
-        severity=data.get('severity', 'MEDIUM'),
-        acceleration_x=data.get('acceleration_x'),
-        acceleration_y=data.get('acceleration_y'),
-        acceleration_z=data.get('acceleration_z'),
-        speed=data.get('speed'),
-        location_lat=data.get('location', {}).get('lat'),
-        location_lng=data.get('location', {}).get('lng'),
-        location_address=data.get('location', {}).get('address'),
-        timestamp=timestamp,
-        alert_sent=True
-    )
-    
-    db.session.add(event)
-    
-    # Update bus location
-    location = data.get('location', {})
-    if location.get('lat') and location.get('lng'):
-        bus_location = BusLocation.query.filter_by(bus_id=bus.id).first()
-        if bus_location:
-            bus_location.latitude = location['lat']
-            bus_location.longitude = location['lng']
-            bus_location.speed = data.get('speed')
-            bus_location.updated_at = datetime.utcnow()
-        else:
-            bus_location = BusLocation(
-                bus_id=bus.id,
-                latitude=location['lat'],
-                longitude=location['lng'],
-                speed=data.get('speed')
-            )
-            db.session.add(bus_location)
-    
-    db.session.commit()
+    if error:
+        return jsonify(error), 400
     
     # Return event data for SocketIO broadcast (done in main app)
     return jsonify({

@@ -15,10 +15,20 @@ import time
 import webbrowser
 import os
 
+# Try to load environment variables (optional)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # dotenv not installed, use defaults
+    pass
+
 # Configuration
-SERVER_URL = "http://localhost:5000"
+BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:5000')
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 BACKEND_SCRIPT = "backend/app.py"
 SIMULATOR_SCRIPT = "simulator/simulator.py"
+FRONTEND_DIR = "frontend"
 
 
 def get_python_path():
@@ -66,11 +76,28 @@ def main():
             print("--------------------")
             sys.exit(1)
         
-        print("✅ Backend running on", SERVER_URL)
+        print("✅ Backend running on", BACKEND_URL)
+        
+        # Start frontend dev server
+        print("\n⚛️  Starting frontend dev server...")
+        frontend_process = subprocess.Popen(
+            ["npm", "run", "dev"],
+            cwd=FRONTEND_DIR,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            shell=True
+        )
+        processes.append(("Frontend", frontend_process))
+        
+        # Wait for frontend to start
+        time.sleep(5)
+        
+        print("✅ Frontend running on", FRONTEND_URL)
         
         # Open dashboard in browser
         print("\n🌐 Opening dashboard in browser...")
-        webbrowser.open(SERVER_URL)
+        webbrowser.open(FRONTEND_URL)
         time.sleep(2)
         
         # Start simulator
@@ -88,7 +115,8 @@ def main():
         print("\n" + "="*60)
         print("🎉 DEMO IS RUNNING!")
         print("="*60)
-        print(f"\n📍 Dashboard: {SERVER_URL}")
+        print(f"\n📍 Frontend: {FRONTEND_URL}")
+        print(f"📍 Backend: {BACKEND_URL}")
         print("📊 Simulator is generating events every 2 seconds")
         print("\n⏹️  Press Ctrl+C to stop all components\n")
         
