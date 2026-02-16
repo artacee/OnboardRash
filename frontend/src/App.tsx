@@ -18,7 +18,7 @@ import { AnimatePresence } from 'framer-motion'
 import AnimatedPage from '@/components/AnimatedPage'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { AuthProvider } from '@/contexts/AuthContext'
-import { Landing, Login, Dashboard, Events } from '@/pages'
+import { Landing, Login, Dashboard, Events, Settings } from '@/pages'
 import './index.css'
 
 function AnimatedRoutes() {
@@ -48,6 +48,13 @@ function AnimatedRoutes() {
           <ProtectedRoute>
             <AnimatedPage transition="slide">
               <Events />
+            </AnimatedPage>
+          </ProtectedRoute>
+        } />
+        <Route path="/settings" element={
+          <ProtectedRoute>
+            <AnimatedPage transition="slide">
+              <Settings />
             </AnimatedPage>
           </ProtectedRoute>
         } />

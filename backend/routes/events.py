@@ -110,6 +110,30 @@ def acknowledge_event(event_id):
     return jsonify({'status': 'acknowledged', 'event': event.to_dict()})
 
 
+@events_bp.route('/api/events/reset', methods=['DELETE'])
+def reset_events():
+    """
+    Delete all events from the database.
+    WARNING: This is a destructive operation and cannot be undone.
+    Used by the settings page to reset the database.
+    """
+    try:
+        count = DrivingEvent.query.count()
+        DrivingEvent.query.delete()
+        db.session.commit()
+        return jsonify({
+            'status': 'success',
+            'message': f'Successfully deleted {count} events',
+            'deleted_count': count
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to reset events: {str(e)}'
+        }), 500
+
+
 @events_bp.route('/api/stats', methods=['GET'])
 def get_stats():
     """Get statistics for dashboard summary cards."""

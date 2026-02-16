@@ -1,0 +1,400 @@
+/* ═══════════════════════════════════════════════════
+   Settings Page Styles
+   ═══════════════════════════════════════════════════ */
+
+.settings-header {
+    margin-bottom: var(--space-6);
+}
+
+.section-title {
+    fontSize: var(--text-title-2);
+    fontWeight: var(--weight-headline);
+    color: var(--text-primary);
+    letterSpacing: -0.02em;
+    marginBottom: var(--space-5);
+}
+
+/* ─── SYSTEM STATS GRID ─── */
+.stats-grid-settings {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--space-4);
+}
+
+.stat-card-settings {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-5);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-card-settings:hover {
+    transform: translateY(-4px);
+    box-shadow:
+        0 12px 32px rgba(0, 0, 0, 0.08),
+        0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.stat-label {
+    display: block;
+    font-size: var(--text-footnote);
+    color: var(--text-tertiary);
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    display: block;
+    font-size: var(--text-title-2);
+    font-weight: var(--weight-title);
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+}
+
+/* ─── DATABASE MANAGEMENT ─── */
+.management-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-6);
+    padding: var(--space-6);
+    flex-wrap: wrap;
+}
+
+.management-info {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-4);
+    flex: 1;
+    min-width: 300px;
+}
+
+.reset-button {
+    padding: var(--space-3) var(--space-6);
+    background: var(--glass-t2-bg);
+    backdrop-filter: blur(12px);
+    border: 1.5px solid rgba(248, 113, 113, 0.3);
+    border-radius: var(--radius-md);
+    font-size: var(--text-callout);
+    font-weight: var(--weight-headline);
+    color: var(--color-danger);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-family: inherit;
+    box-shadow: 0 2px 8px rgba(248, 113, 113, 0.1);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.reset-button:hover {
+    background: rgba(248, 113, 113, 0.08);
+    border-color: rgba(248, 113, 113, 0.5);
+    box-shadow: 0 4px 16px rgba(248, 113, 113, 0.2);
+}
+
+.reset-button:active {
+    transform: translateY(1px);
+}
+
+/* ─── BUSES GRID ─── */
+.buses-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--space-5);
+}
+
+.bus-card {
+    padding: var(--space-5);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.bus-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--color-info), var(--color-safe));
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.bus-card:hover::before {
+    opacity: 1;
+}
+
+.bus-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-4);
+}
+
+.bus-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-md);
+    background: var(--glass-t2-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+}
+
+.bus-status {
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    font-size: var(--text-caption);
+    font-weight: var(--weight-headline);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.bus-status.active {
+    background: var(--color-safe-bg);
+    color: var(--color-safe);
+}
+
+.bus-status.inactive {
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--text-tertiary);
+}
+
+.bus-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.bus-registration {
+    font-size: var(--text-title-3);
+    font-weight: var(--weight-title);
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+}
+
+.bus-detail {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-callout);
+    color: var(--text-secondary);
+}
+
+.bus-meta {
+    font-size: var(--text-footnote);
+    color: var(--text-tertiary);
+}
+
+/* ─── EMPTY STATE ─── */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-12);
+    text-align: center;
+}
+
+/* ─── LOADING SKELETON ─── */
+.buses-loading {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--space-5);
+}
+
+.skeleton-card {
+    height: 180px;
+    background: linear-gradient(90deg,
+            rgba(255, 255, 255, 0.4) 0%,
+            rgba(255, 255, 255, 0.6) 50%,
+            rgba(255, 255, 255, 0.4) 100%);
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite linear;
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -1000px 0;
+    }
+
+    100% {
+        background-position: 1000px 0;
+    }
+}
+
+/* ─── MODAL STYLES ─── */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: var(--space-6);
+}
+
+.confirm-modal {
+    max-width: 480px;
+    width: 100%;
+    padding: var(--space-8);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.modal-close {
+    position: absolute;
+    top: var(--space-4);
+    right: var(--space-4);
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--glass-t2-bg);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.modal-close:hover:not(:disabled) {
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.modal-close:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.modal-icon-danger {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(248, 113, 113, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--space-5);
+    color: var(--color-danger);
+}
+
+.modal-actions {
+    display: flex;
+    gap: var(--space-3);
+    width: 100%;
+    margin-top: var(--space-4);
+}
+
+.modal-button {
+    flex: 1;
+    padding: var(--space-3) var(--space-5);
+    border-radius: var(--radius-md);
+    font-size: var(--text-callout);
+    font-weight: var(--weight-headline);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    font-family: inherit;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.modal-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.modal-button-secondary {
+    background: var(--glass-t2-bg);
+    backdrop-filter: blur(12px);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: var(--text-primary);
+}
+
+.modal-button-secondary:hover:not(:disabled) {
+    background: var(--glass-t2-bg-hover);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.modal-button-danger {
+    background: linear-gradient(135deg, #f87171, #ef4444);
+    color: white;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.modal-button-danger:hover:not(:disabled) {
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+    transform: translateY(-1px);
+}
+
+.modal-button-danger:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.success-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-6) 0;
+}
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 768px) {
+    .management-card {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .management-info {
+        min-width: 100%;
+    }
+
+    .reset-button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .buses-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .modal-actions {
+        flex-direction: column;
+    }
+
+    .stats-grid-settings {
+        grid-template-columns: 1fr;
+    }
+}

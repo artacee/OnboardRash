@@ -48,13 +48,13 @@
 \section*{Project Summary}
 %==============================================================================
 
-OnboardRash is an end-to-end IoT solution for detecting unsafe driving patterns in public transport. The system combines edge computing on Raspberry Pi with a cloud backend and a modern React-based real-time web dashboard.
+OnboardRash is an end-to-end IoT solution for detecting unsafe driving patterns in public transport. The system combines edge computing on Raspberry Pi with a cloud backend and a high-fidelity, VisionOS-inspired real-time dashboard.
 
 \begin{tabularx}{\textwidth}{@{}lX@{}}
 \textbf{Platform:} & Raspberry Pi 4 (Edge) + Flask Server (Cloud) \\
 \textbf{Communication:} & REST API over 4G/LTE + WebSocket (Socket.IO) for real-time \\
-\textbf{Database:} & SQLite with SQLAlchemy ORM (both edge \& cloud) \\
-\textbf{Dashboard:} & React 19 + TypeScript + Vite + TailwindCSS v4 \\
+\textbf{Design System:} & Spatial Glass Interface (4-Tier Material Hierarchy) \\
+\textbf{Dashboard:} & React 19 + TypeScript + Vite 7 + TailwindCSS v4 \\
 \end{tabularx}
 
 %==============================================================================
@@ -74,12 +74,27 @@ OnboardRash is an end-to-end IoT solution for detecting unsafe driving patterns 
 | - Local SQLite    |                              v
 +-------------------+                     +------------------+
                                           |   REACT FRONTEND |
-                                          | - Vite + TS      |
-                                          | - Zustand Store  |
-                                          | - Socket.IO      |
-                                          | - TailwindCSS    |
+                                          | - Spatial UI     |
+                                          | - Glass Morphism |
+                                          | - Physics Motion |
+                                          | - Tailwind v4    |
                                           +------------------+
 \end{lstlisting}
+
+%==============================================================================
+\section*{Design System: Spatial Glass}
+%==============================================================================
+
+The interface implements a high-fidelity \textbf{Spatial Design} system inspired by Apple's visionOS. It uses a 4-tier material hierarchy to establish depth and focus:
+
+\begin{itemize}[noitemsep]
+    \item \textbf{Tier 0 (Window Frame):} The base floating container. High blur (60px), highly translucent (48\% opacity) to let the atmospheric background bleed through.
+    \item \textbf{Tier 1 (Content):} Primary content areas. Medium blur (24px), semi-transparent (38\% opacity).
+    \item \textbf{Tier 2 (Controls):} Interactive elements (buttons, inputs). Low blur (12px), higher contrast.
+    \item \textbf{Tier 3 (Overlay):} Clear glass over media/maps. 40px blur, high transparency.
+\end{itemize}
+
+\textbf{Physics & Motion:} All interactions use spring-physics simulations (mass, stiffness, damping) rather than linear durations, creating a natural, fluid feel. The background features animated gradient orbs that shift subtly to create a "living" atmosphere.
 
 %==============================================================================
 \section*{Hardware Stack}
@@ -206,13 +221,14 @@ When 4G connectivity is lost:
 \toprule
 \textbf{Feature} & \textbf{Implementation} \\
 \midrule
-Live Fleet Map & Interactive map with real-time bus markers, refreshes every 10s \\
+Spatial Interface & Floating glass windows with physics-based spring animations \\
+4-Tier Glass System & Hierarchical materials (Base Window $\to$ Content $\to$ Controls $\to$ Overlay) \\
+Live Fleet Map & Interactive map with 3D markers and real-time position sync (10s poll) \\
+Atmospheric Bg & Dynamic, fluid orb animations that shift based on time-of-day \\
 Real-time Alerts & Socket.IO client with toast notifications and audio alerts \\
-Events Table & Filterable by severity/type, paginated, with evidence viewer \\
-Stats Grid & Animated counters for today's events, active buses, severity counts \\
-Command Palette & Keyboard shortcut (Cmd+K) for quick navigation \\
-Evidence Viewer & Modal popup for snapshots, video playback \\
-CSV Export & Server-side generation via /api/export \\
+Stats Grid & Bento-grid layout with animated counters for daily metrics \\
+Command Palette & Keyboard-first navigation (Cmd+K) for power users \\
+Evidence Viewer & Modal popup with glassmorphic backdrop for snapshots/video \\
 \bottomrule
 \end{tabular}
 
@@ -227,8 +243,9 @@ CSV Export & Server-side generation via /api/export \\
 Edge (Pi) & Python 3, smbus2, pyserial, OpenCV, picamera2, Kalman Filter \\
 Backend & Flask 3.0, Flask-SocketIO, SQLAlchemy, Flask-CORS, Blueprints \\
 Database & SQLite with SQLAlchemy ORM (file-based, both edge and cloud) \\
-Frontend & React 19, TypeScript, Vite 7, TailwindCSS v4, Zustand, Recharts \\
-3D/Visuals & React Three Fiber, Three.js, Framer Motion \\
+Frontend & React 19, TypeScript, Vite 7, TailwindCSS v4, Zustand \\
+Design System & CSS Modules (Tokens), Apple Human Interface Guidelines \\
+Motion & Framer Motion (Spring Physics), CSS 3D Transforms \\
 Protocol & REST (JSON), WebSocket (Socket.IO) \\
 \bottomrule
 \end{tabular}
@@ -241,6 +258,7 @@ Protocol & REST (JSON), WebSocket (Socket.IO) \\
     \item Sensor sample rate: 10 Hz (100ms loop)
     \item Event transmission latency: < 500ms (online)
     \item Dashboard update rate: 10s (map), instant (alerts via WebSocket)
+    \item UI Frame Rate: 60fps (optimized glass blur effect)
     \item Simulator: 3 virtual buses generating events every 2s for testing
 \end{itemize}
 

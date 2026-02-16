@@ -67,6 +67,8 @@ export interface Bus {
   registration_number: string
   driver_name: string
   route: string
+  is_active: boolean
+  created_at: string
   last_latitude?: number
   last_longitude?: number
   last_update?: string
