@@ -81,6 +81,36 @@ def broadcast_alert(event_data):
 app.broadcast_alert = broadcast_alert
 
 
+# ==================== AUTH ROUTES ====================
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    """Simple authentication endpoint for the dashboard."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    username = data.get('username', '')
+    password = data.get('password', '')
+
+    # Valid credentials (for demo/college project)
+    VALID_USERS = {
+        'admin': 'admin123',
+        'ajmal': '12345'
+    }
+
+    if username in VALID_USERS and VALID_USERS[username] == password:
+        return jsonify({
+            'status': 'success',
+            'user': {
+                'username': username,
+                'role': 'admin'
+            }
+        })
+
+    return jsonify({'error': 'Invalid username or password'}), 401
+
+
 # ==================== DASHBOARD ROUTES ====================
 
 @app.route('/')

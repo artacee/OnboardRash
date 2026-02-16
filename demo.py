@@ -1,12 +1,14 @@
 """
 Demo Script - Rash Driving Detection System
 
-This script starts all components for a complete demo:
-1. Starts the Flask backend
-2. Opens the dashboard in browser
-3. Starts the IoT simulator
+Starts all three components in one go:
+  1. Flask backend   (port 5000)
+  2. Vite frontend   (port 5173)
+  3. Bus simulator   (sends events every 2 s)
 
-Run: python demo.py
+Stop everything cleanly with Ctrl+C or by closing this window.
+
+Run:  python demo.py
 """
 
 import subprocess
@@ -14,144 +16,166 @@ import sys
 import time
 import webbrowser
 import os
+import signal
 
-# Try to load environment variables (optional)
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    # dotenv not installed, use defaults
-    pass
-
-# Configuration
-BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:5000')
+# ─── Configuration ───────────────────────────────────────────
+BACKEND_URL  = os.getenv('BACKEND_URL',  'http://localhost:5000')
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
-BACKEND_SCRIPT = "backend/app.py"
-SIMULATOR_SCRIPT = "simulator/simulator.py"
-FRONTEND_DIR = "frontend"
 
+ROOT_DIR         = os.path.dirname(os.path.abspath(__file__))
+BACKEND_SCRIPT   = os.path.join(ROOT_DIR, 'backend', 'app.py')
+SIMULATOR_SCRIPT = os.path.join(ROOT_DIR, 'simulator', 'simulator.py')
+FRONTEND_DIR     = os.path.join(ROOT_DIR, 'frontend')
 
-def get_python_path():
-    """Get the path to the venv Python executable."""
-    if sys.platform == "win32":
-        return os.path.join("venv", "Scripts", "python.exe")
+# ─── Helpers ─────────────────────────────────────────────────
+
+def find_python():
+    """Return the Python executable — prefer venv if it exists."""
+    if sys.platform == 'win32':
+        venv_py = os.path.join(ROOT_DIR, 'venv', 'Scripts', 'python.exe')
     else:
-        return os.path.join("venv", "bin", "python")
+        venv_py = os.path.join(ROOT_DIR, 'venv', 'bin', 'python')
+    return venv_py if os.path.exists(venv_py) else sys.executable
 
+
+def find_npm():
+    """Return npm command suitable for the OS."""
+    return 'npm.cmd' if sys.platform == 'win32' else 'npm'
+
+
+def kill_tree(proc):
+    """Kill a process and all its children (works on Windows & Unix)."""
+    try:
+        if sys.platform == 'win32':
+            # taskkill /T kills the whole process tree
+            subprocess.call(
+                ['taskkill', '/F', '/T', '/PID', str(proc.pid)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        else:
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+    except Exception:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+
+
+def wait_for_server(url, timeout=15):
+    """Block until *url* responds or *timeout* seconds elapse."""
+    import urllib.request, urllib.error
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            urllib.request.urlopen(url, timeout=2)
+            return True
+        except Exception:
+            time.sleep(0.5)
+    return False
+
+
+# ─── Main ────────────────────────────────────────────────────
 
 def main():
-    print("\n" + "="*60)
-    print("🚌 RASH DRIVING DETECTION SYSTEM - DEMO MODE")
-    print("="*60)
-    
-    python_path = get_python_path()
-    
-    if not os.path.exists(python_path):
-        print("❌ Virtual environment not found!")
-        print("   Run: python -m venv venv")
-        print("   Then: pip install -r backend/requirements.txt")
-        sys.exit(1)
-    
-    processes = []
-    
+    python = find_python()
+    npm    = find_npm()
+
+    # On Unix, create new process groups so we can kill the tree
+    popen_kwargs = {}
+    if sys.platform != 'win32':
+        popen_kwargs['preexec_fn'] = os.setsid
+
+    processes: list[tuple[str, subprocess.Popen]] = []
+
+    def cleanup():
+        print('\n\n  Stopping all processes...')
+        for name, proc in reversed(processes):
+            print(f'    Stopping {name} (PID {proc.pid})...')
+            kill_tree(proc)
+        print('\n  All stopped. Goodbye!\n')
+
+    # ── Banner ──────────────────────────────────────────────
+    print()
+    print('=' * 60)
+    print('  RASH DRIVING DETECTION SYSTEM — DEMO')
+    print('=' * 60)
+    print(f'  Python : {python}')
+    print(f'  npm    : {npm}')
+    print('=' * 60)
+
     try:
-        # Start backend
-        print("\n📡 Starting backend server...")
-        backend_process = subprocess.Popen(
-            [python_path, BACKEND_SCRIPT],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True
+        # 1. Backend ──────────────────────────────────────────
+        print('\n[1/3]  Starting Flask backend...')
+        backend = subprocess.Popen(
+            [python, BACKEND_SCRIPT],
+            cwd=os.path.join(ROOT_DIR, 'backend'),
+            **popen_kwargs,
         )
-        processes.append(("Backend", backend_process))
-        
-        # Wait for backend to start
-        time.sleep(3)
-        
-        # Check if backend started successfully
-        if backend_process.poll() is not None:
-            print("❌ Backend failed to start!")
-            print("--- Error Output ---")
-            print(backend_process.stdout.read())
-            print("--------------------")
+        processes.append(('Backend', backend))
+
+        if not wait_for_server(f'{BACKEND_URL}/health', timeout=15):
+            print('  ERROR: Backend did not start within 15 s.')
+            cleanup()
             sys.exit(1)
-        
-        print("✅ Backend running on", BACKEND_URL)
-        
-        # Start frontend dev server
-        print("\n⚛️  Starting frontend dev server...")
-        frontend_process = subprocess.Popen(
-            ["npm", "run", "dev"],
+        print(f'  Backend ready  ->  {BACKEND_URL}')
+
+        # 2. Frontend ─────────────────────────────────────────
+        print('\n[2/3]  Starting Vite frontend...')
+        frontend = subprocess.Popen(
+            [npm, 'run', 'dev'],
             cwd=FRONTEND_DIR,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            shell=True
+            **popen_kwargs,
         )
-        processes.append(("Frontend", frontend_process))
-        
-        # Wait for frontend to start
-        time.sleep(5)
-        
-        print("✅ Frontend running on", FRONTEND_URL)
-        
-        # Open dashboard in browser
-        print("\n🌐 Opening dashboard in browser...")
-        webbrowser.open(FRONTEND_URL)
-        time.sleep(2)
-        
-        # Start simulator
-        print("\n🚌 Starting bus simulator...")
-        simulator_process = subprocess.Popen(
-            [python_path, SIMULATOR_SCRIPT],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True
+        processes.append(('Frontend', frontend))
+
+        # Give Vite a moment to spin up
+        time.sleep(6)
+        # Check if it grabbed an alternate port
+        actual_frontend_url = FRONTEND_URL
+        print(f'  Frontend ready ->  {actual_frontend_url}')
+
+        # 3. Simulator ────────────────────────────────────────
+        print('\n[3/3]  Starting bus simulator...')
+        simulator = subprocess.Popen(
+            [python, SIMULATOR_SCRIPT],
+            cwd=ROOT_DIR,
+            **popen_kwargs,
         )
-        processes.append(("Simulator", simulator_process))
-        
-        print("✅ Simulator running (3 buses)")
-        
-        print("\n" + "="*60)
-        print("🎉 DEMO IS RUNNING!")
-        print("="*60)
-        print(f"\n📍 Frontend: {FRONTEND_URL}")
-        print(f"📍 Backend: {BACKEND_URL}")
-        print("📊 Simulator is generating events every 2 seconds")
-        print("\n⏹️  Press Ctrl+C to stop all components\n")
-        
-        # Keep running and show output
+        processes.append(('Simulator', simulator))
+        time.sleep(1)
+        print('  Simulator ready (3 buses, events every 2 s)')
+
+        # ── Open browser ────────────────────────────────────
+        print(f'\n  Opening browser ->  {actual_frontend_url}')
+        webbrowser.open(actual_frontend_url)
+
+        # ── Summary ─────────────────────────────────────────
+        print()
+        print('=' * 60)
+        print('  DEMO IS RUNNING')
+        print('=' * 60)
+        print(f'  Frontend  :  {actual_frontend_url}')
+        print(f'  Backend   :  {BACKEND_URL}')
+        print(f'  Login     :  ajmal / 12345')
+        print()
+        print('  Press Ctrl+C to stop everything.')
+        print('=' * 60)
+
+        # ── Keep alive & health-check ────────────────────────
         while True:
-            # Check if processes are still running
-            for name, process in processes:
-                if process.poll() is not None:
-                    print(f"⚠️ {name} has stopped!")
-                    print(f"--- {name} Output ---")
-                    try:
-                        print(process.stdout.read())
-                    except Exception as e:
-                        print(f"Could not read output: {e}")
-                    print("---------------------")
-                    
-                    # If any process dies, we should probably stop everything
+            for name, proc in processes:
+                if proc.poll() is not None:
+                    print(f'\n  WARNING: {name} exited (code {proc.returncode})')
                     raise KeyboardInterrupt
-            
-            time.sleep(1)
-            
+            time.sleep(2)
+
     except KeyboardInterrupt:
-        print("\n\n🛑 Stopping demo...")
+        pass
     finally:
-        # Clean up all processes
-        for name, process in processes:
-            print(f"   Stopping {name}...")
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
-        
-        print("\n✅ Demo stopped. Goodbye!\n")
+        cleanup()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
+

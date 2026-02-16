@@ -12,6 +12,7 @@
 export interface DashboardStats {
   total_events_today: number
   active_buses: number
+  total_buses: number
   high_severity_count: number
   event_breakdown: { [key: string]: number }
 }
@@ -28,6 +29,7 @@ export type EventSeverity = 'LOW' | 'MEDIUM' | 'HIGH'
 export interface Event {
   id: number
   bus_id: number
+  bus_registration?: string
   event_type: EventType
   severity: EventSeverity
   timestamp: string
@@ -39,6 +41,7 @@ export interface Event {
   accel_z: number
   snapshot_path?: string
   video_path?: string
+  acknowledged?: boolean
 }
 
 export interface GetEventsParams {

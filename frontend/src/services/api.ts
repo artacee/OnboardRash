@@ -9,10 +9,11 @@ import type {
   GetEventsParams,
   Bus,
   BusLocation,
+  BusStatus,
   ExportParams
 } from '@/types'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 
 /**
  * Generic API error class
@@ -48,10 +49,11 @@ async function apiFetch<T>(
     })
 
     if (!response.ok) {
+      const errorBody = await response.json().catch(() => null)
       throw new ApiError(
         response.status,
         response.statusText,
-        `API request failed: ${response.statusText}`
+        errorBody?.error || `API request failed: ${response.statusText}`
       )
     }
 
@@ -76,7 +78,14 @@ export const statsApi = {
    * GET /api/stats
    */
   async getStats(): Promise<DashboardStats> {
-    return apiFetch<DashboardStats>('/api/stats')
+    const data = await apiFetch<any>('/api/stats')
+    return {
+      total_events_today: data.today_events ?? 0,
+      active_buses: data.active_buses ?? 0,
+      total_buses: data.total_buses ?? 0,
+      high_severity_count: data.high_severity ?? 0,
+      event_breakdown: data.events_by_type ?? {}
+    }
   }
 }
 
@@ -85,6 +94,29 @@ export const statsApi = {
  * EVENTS API
  * ═══════════════════════════════════════════════════
  */
+
+/**
+ * Map a raw backend event object to the frontend Event type
+ */
+export function mapEvent(e: any): Event {
+  return {
+    id: e.id,
+    bus_id: e.bus_id,
+    bus_registration: e.bus_registration,
+    event_type: e.event_type,
+    severity: e.severity,
+    timestamp: e.timestamp,
+    latitude: e.location?.lat ?? 0,
+    longitude: e.location?.lng ?? 0,
+    speed: e.speed ?? 0,
+    accel_x: e.acceleration_x ?? 0,
+    accel_y: e.acceleration_y ?? 0,
+    accel_z: e.acceleration_z ?? 0,
+    snapshot_path: e.snapshot_url,
+    video_path: e.video_url,
+    acknowledged: e.acknowledged
+  }
+}
 
 export const eventsApi = {
   /**
@@ -103,7 +135,8 @@ export const eventsApi = {
     }
 
     const endpoint = `/api/events${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
-    return apiFetch<Event[]>(endpoint)
+    const data = await apiFetch<any>(endpoint)
+    return (data.events || []).map(mapEvent)
   },
 
   /**
@@ -111,7 +144,8 @@ export const eventsApi = {
    * GET /api/events/{id}
    */
   async getEventById(id: number): Promise<Event> {
-    return apiFetch<Event>(`/api/events/${id}`)
+    const data = await apiFetch<any>(`/api/events/${id}`)
+    return mapEvent(data)
   }
 }
 
@@ -121,13 +155,31 @@ export const eventsApi = {
  * ═══════════════════════════════════════════════════
  */
 
+/**
+ * Map a raw backend bus location to the frontend BusLocation type
+ */
+function mapBusLocation(loc: any): BusLocation {
+  return {
+    bus_id: loc.bus_id,
+    registration_number: loc.bus_registration || '',
+    driver_name: '',
+    latitude: loc.latitude,
+    longitude: loc.longitude,
+    speed: loc.speed ?? 0,
+    heading: loc.heading ?? 0,
+    timestamp: loc.updated_at || '',
+    status: 'active' as BusStatus
+  }
+}
+
 export const busesApi = {
   /**
    * Get all buses
    * GET /api/buses
    */
   async getBuses(): Promise<Bus[]> {
-    return apiFetch<Bus[]>('/api/buses')
+    const data = await apiFetch<any>('/api/buses')
+    return data.buses || []
   },
 
   /**
@@ -135,7 +187,8 @@ export const busesApi = {
    * GET /api/buses/locations
    */
   async getBusLocations(): Promise<BusLocation[]> {
-    return apiFetch<BusLocation[]>('/api/buses/locations')
+    const data = await apiFetch<any>('/api/buses/locations')
+    return (data.locations || []).map(mapBusLocation)
   },
 
   /**
@@ -148,7 +201,7 @@ export const busesApi = {
   ): Promise<{ status: string }> {
     return apiFetch<{ status: string }>(`/api/buses/${busId}/location`, {
       method: 'POST',
-      body: JSON.stringify(location)
+      body: JSON.stringify({ lat: location.latitude, lng: location.longitude })
     })
   }
 }
@@ -189,6 +242,25 @@ export const exportApi = {
 
 /**
  * ═══════════════════════════════════════════════════
+ * AUTH API
+ * ═══════════════════════════════════════════════════
+ */
+
+export const authApi = {
+  /**
+   * Login with username and password
+   * POST /api/auth/login
+   */
+  async login(username: string, password: string): Promise<{ status: string; user: { username: string; role: string } }> {
+    return apiFetch('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password })
+    })
+  }
+}
+
+/**
+ * ═══════════════════════════════════════════════════
  * COMBINED API EXPORT
  * ═══════════════════════════════════════════════════
  */
@@ -197,7 +269,8 @@ const api = {
   stats: statsApi,
   events: eventsApi,
   buses: busesApi,
-  export: exportApi
+  export: exportApi,
+  auth: authApi
 }
 
 export default api

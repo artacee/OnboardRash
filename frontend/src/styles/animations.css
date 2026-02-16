@@ -9,15 +9,20 @@
 
 /* Floating orbs animation — slow, organic movement */
 @keyframes orbFloat {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translate(0, 0) scale(1) rotate(0deg);
   }
+
   25% {
     transform: translate(8vw, -5vh) scale(1.08) rotate(90deg);
   }
+
   50% {
     transform: translate(5vw, 8vh) scale(0.95) rotate(180deg);
   }
+
   75% {
     transform: translate(-6vw, 3vh) scale(1.05) rotate(270deg);
   }
@@ -50,9 +55,12 @@
 
 /* Gradient background shift animation */
 @keyframes gradientShift {
-  0%, 100% {
+
+  0%,
+  100% {
     background-position: 0% 50%;
   }
+
   50% {
     background-position: 100% 50%;
   }
@@ -73,6 +81,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -84,6 +93,7 @@
     opacity: 0;
     transform: translateY(40px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -96,6 +106,7 @@
     opacity: 0;
     transform: translateY(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -108,6 +119,7 @@
     opacity: 0;
     transform: scale(0.9);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -120,9 +132,11 @@
     opacity: 0;
     transform: scale(0);
   }
+
   50% {
     transform: scale(1.1);
   }
+
   100% {
     opacity: 1;
     transform: scale(1);
@@ -135,6 +149,7 @@
     opacity: 0;
     transform: translateY(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -147,6 +162,7 @@
     opacity: 0;
     transform: translateY(40px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -159,6 +175,7 @@
     opacity: 0;
     transform: translateX(-40px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -171,6 +188,7 @@
     opacity: 0;
     transform: translateX(40px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -183,6 +201,7 @@
     opacity: 0;
     transform: translateY(40px) scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -199,6 +218,7 @@
   from {
     opacity: 1;
   }
+
   to {
     opacity: 0;
   }
@@ -210,6 +230,7 @@
     opacity: 1;
     transform: translateY(0);
   }
+
   to {
     opacity: 0;
     transform: translateY(20px);
@@ -222,6 +243,7 @@
     opacity: 1;
     transform: scale(1);
   }
+
   to {
     opacity: 0;
     transform: scale(0.9);
@@ -238,6 +260,7 @@
   0% {
     transform: translateX(-100%);
   }
+
   100% {
     transform: translateX(100%);
   }
@@ -245,9 +268,12 @@
 
 /* Pulse glow (for live indicators, alerts) */
 @keyframes pulseGlow {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
   }
+
   50% {
     box-shadow: 0 0 40px rgba(255, 255, 255, 0.4);
   }
@@ -255,10 +281,13 @@
 
 /* Pulse scale (for live badges) */
 @keyframes pulseScale {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1);
     opacity: 1;
   }
+
   50% {
     transform: scale(1.05);
     opacity: 0.8;
@@ -267,9 +296,12 @@
 
 /* Pulse — subtle breathing effect */
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.6;
   }
@@ -280,6 +312,7 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -287,9 +320,12 @@
 
 /* Bounce (icons, success indicators) */
 @keyframes bounce {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-10px);
   }
@@ -297,9 +333,12 @@
 
 /* Float (decorative elements) */
 @keyframes float {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-10px);
   }
@@ -307,26 +346,48 @@
 
 /* Wiggle (error indicators) */
 @keyframes wiggle {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateX(0);
   }
-  10%, 30%, 50%, 70%, 90% {
+
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
     transform: translateX(-4px);
   }
-  20%, 40%, 60%, 80% {
+
+  20%,
+  40%,
+  60%,
+  80% {
     transform: translateX(4px);
   }
 }
 
 /* Shake (error notifications) */
 @keyframes shake {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateX(0);
   }
-  10%, 30%, 50%, 70%, 90% {
+
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
     transform: translateX(-10px);
   }
-  20%, 40%, 60%, 80% {
+
+  20%,
+  40%,
+  60%,
+  80% {
     transform: translateX(10px);
   }
 }
@@ -341,28 +402,31 @@
   0% {
     background-position: -200px 0;
   }
+
   100% {
     background-position: calc(200px + 100%) 0;
   }
 }
 
 .skeleton {
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.1) 0%,
-    rgba(255, 255, 255, 0.2) 50%,
-    rgba(255, 255, 255, 0.1) 100%
-  );
+  background: linear-gradient(90deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0.2) 50%,
+      rgba(255, 255, 255, 0.1) 100%);
   background-size: 200px 100%;
   animation: skeleton 1.5s ease-in-out infinite;
 }
 
 /* Dots loading animation */
 @keyframes dotPulse {
-  0%, 80%, 100% {
+
+  0%,
+  80%,
+  100% {
     opacity: 0.3;
     transform: scale(1);
   }
+
   40% {
     opacity: 1;
     transform: scale(1.2);
@@ -398,10 +462,13 @@
 
 /* Danger pulse (HIGH severity alerts) */
 @keyframes dangerPulse {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 20px rgba(248, 113, 113, 0.3);
     transform: scale(1);
   }
+
   50% {
     box-shadow: 0 0 40px rgba(248, 113, 113, 0.6);
     transform: scale(1.02);
@@ -414,7 +481,9 @@
     transform: scale(1);
     opacity: 1;
   }
-  75%, 100% {
+
+  75%,
+  100% {
     transform: scale(1.5);
     opacity: 0;
   }
@@ -422,13 +491,19 @@
 
 /* Heartbeat (connection status) */
 @keyframes heartbeat {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1);
   }
-  10%, 30% {
+
+  10%,
+  30% {
     transform: scale(1.1);
   }
-  20%, 40% {
+
+  20%,
+  40% {
     transform: scale(1);
   }
 }
@@ -516,32 +591,90 @@
    Use with JavaScript to create cascading animations
    ═══════════════════════════════════════════════════ */
 
-.delay-100 { animation-delay: 100ms; }
-.delay-200 { animation-delay: 200ms; }
-.delay-300 { animation-delay: 300ms; }
-.delay-400 { animation-delay: 400ms; }
-.delay-500 { animation-delay: 500ms; }
-.delay-600 { animation-delay: 600ms; }
-.delay-700 { animation-delay: 700ms; }
-.delay-800 { animation-delay: 800ms; }
-.delay-900 { animation-delay: 900ms; }
-.delay-1000 { animation-delay: 1000ms; }
+.delay-100 {
+  animation-delay: 100ms;
+}
+
+.delay-200 {
+  animation-delay: 200ms;
+}
+
+.delay-300 {
+  animation-delay: 300ms;
+}
+
+.delay-400 {
+  animation-delay: 400ms;
+}
+
+.delay-500 {
+  animation-delay: 500ms;
+}
+
+.delay-600 {
+  animation-delay: 600ms;
+}
+
+.delay-700 {
+  animation-delay: 700ms;
+}
+
+.delay-800 {
+  animation-delay: 800ms;
+}
+
+.delay-900 {
+  animation-delay: 900ms;
+}
+
+.delay-1000 {
+  animation-delay: 1000ms;
+}
 
 
 /* ═══════════════════════════════════════════════════
    DURATION UTILITIES
    ═══════════════════════════════════════════════════ */
 
-.duration-100 { animation-duration: 100ms; }
-.duration-200 { animation-duration: 200ms; }
-.duration-300 { animation-duration: 300ms; }
-.duration-400 { animation-duration: 400ms; }
-.duration-500 { animation-duration: 500ms; }
-.duration-600 { animation-duration: 600ms; }
-.duration-700 { animation-duration: 700ms; }
-.duration-800 { animation-duration: 800ms; }
-.duration-1000 { animation-duration: 1000ms; }
-.duration-1500 { animation-duration: 1500ms; }
+.duration-100 {
+  animation-duration: 100ms;
+}
+
+.duration-200 {
+  animation-duration: 200ms;
+}
+
+.duration-300 {
+  animation-duration: 300ms;
+}
+
+.duration-400 {
+  animation-duration: 400ms;
+}
+
+.duration-500 {
+  animation-duration: 500ms;
+}
+
+.duration-600 {
+  animation-duration: 600ms;
+}
+
+.duration-700 {
+  animation-duration: 700ms;
+}
+
+.duration-800 {
+  animation-duration: 800ms;
+}
+
+.duration-1000 {
+  animation-duration: 1000ms;
+}
+
+.duration-1500 {
+  animation-duration: 1500ms;
+}
 
 
 /* ═══════════════════════════════════════════════════
@@ -549,6 +682,7 @@
    ═══════════════════════════════════════════════════ */
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -556,12 +690,12 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-  
+
   /* Keep essential infinite animations but slow them down */
   .orb {
     animation-duration: 120s !important;
   }
-  
+
   .animate-spin,
   .animate-pulse,
   .animate-pulse-glow,
@@ -585,6 +719,7 @@
     opacity: 0;
     transform: translateX(60px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -596,6 +731,7 @@
     opacity: 0;
     transform: translateX(-60px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -607,6 +743,7 @@
     opacity: 1;
     transform: translateX(0);
   }
+
   to {
     opacity: 0;
     transform: translateX(-60px);
@@ -618,6 +755,7 @@
     opacity: 1;
     transform: translateX(0);
   }
+
   to {
     opacity: 0;
     transform: translateX(60px);
@@ -630,6 +768,7 @@
     opacity: 0;
     transform: scale(0.96) translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
@@ -638,4 +777,35 @@
 
 .page-window {
   animation: pageWindowEnter 0.5s var(--ease-smooth) forwards;
+}
+
+
+/* ═══════════════════════════════════════════════════
+   SCROLL-LINKED PARALLAX UTILITY
+   Apply .parallax-layer to elements that should subtly
+   shift on scroll. Set --scroll-y via JS on the element
+   or a parent. Factor: 0.03x vertical offset.
+   ═══════════════════════════════════════════════════ */
+
+.parallax-layer {
+  transform: translateY(calc(var(--scroll-y, 0) * 0.03px));
+  transition: transform 100ms linear;
+  will-change: transform;
+}
+
+.parallax-layer--slow {
+  transform: translateY(calc(var(--scroll-y, 0) * 0.015px));
+}
+
+.parallax-layer--fast {
+  transform: translateY(calc(var(--scroll-y, 0) * 0.06px));
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .parallax-layer,
+  .parallax-layer--slow,
+  .parallax-layer--fast {
+    transform: none !important;
+  }
 }

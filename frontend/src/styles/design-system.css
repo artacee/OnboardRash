@@ -13,79 +13,80 @@
      These create a living, breathing atmosphere that's
      LIGHT and airy. Think Apple's visionOS light mode.
      ───────────────────────────────────────────────── */
-  
+
   /* Base atmosphere — soft cool white */
   --bg-base: #f5f7fa;
-  
+
   /* Primary orb — soft lavender/purple gradient */
-  --gradient-orb-1: radial-gradient(
-    ellipse 70% 50% at 45% 35%,
-    rgba(138, 117, 234, 0.12) 0%,     /* Soft lavender */
-    rgba(159, 122, 234, 0.08) 30%,    /* Light purple */
-    rgba(180, 140, 230, 0.04) 60%,    /* Pale purple */
-    transparent 85%
-  );
-  
+  --gradient-orb-1: radial-gradient(ellipse 70% 50% at 45% 35%,
+      rgba(138, 117, 234, 0.12) 0%,
+      /* Soft lavender */
+      rgba(159, 122, 234, 0.08) 30%,
+      /* Light purple */
+      rgba(180, 140, 230, 0.04) 60%,
+      /* Pale purple */
+      transparent 85%);
+
   /* Secondary orb — soft teal/mint glow */
-  --gradient-orb-2: radial-gradient(
-    circle at 25% 65%,
-    rgba(100, 210, 255, 0.10) 0%,     /* Soft cyan */
-    rgba(150, 220, 255, 0.06) 40%,    /* Light sky blue */
-    transparent 75%
-  );
-  
+  --gradient-orb-2: radial-gradient(circle at 25% 65%,
+      rgba(100, 210, 255, 0.10) 0%,
+      /* Soft cyan */
+      rgba(150, 220, 255, 0.06) 40%,
+      /* Light sky blue */
+      transparent 75%);
+
   /* Accent orb — soft rose/peach */
-  --gradient-orb-3: radial-gradient(
-    circle at 75% 25%,
-    rgba(255, 168, 200, 0.10) 0%,     /* Soft pink */
-    rgba(255, 200, 220, 0.06) 40%,    /* Light rose */
-    transparent 70%
-  );
-  
+  --gradient-orb-3: radial-gradient(circle at 75% 25%,
+      rgba(255, 168, 200, 0.10) 0%,
+      /* Soft pink */
+      rgba(255, 200, 220, 0.06) 40%,
+      /* Light rose */
+      transparent 70%);
+
   /* Fourth orb — soft amber/cream accent */
-  --gradient-orb-4: radial-gradient(
-    ellipse at 60% 80%,
-    rgba(255, 220, 150, 0.08) 0%,     /* Soft amber */
-    rgba(255, 240, 200, 0.04) 50%,    /* Cream */
-    transparent 75%
-  );
-  
+  --gradient-orb-4: radial-gradient(ellipse at 60% 80%,
+      rgba(255, 220, 150, 0.08) 0%,
+      /* Soft amber */
+      rgba(255, 240, 200, 0.04) 50%,
+      /* Cream */
+      transparent 75%);
+
   /* ─────────────────────────────────────────────────
      GLASS MATERIALS — 4-Tier System (Vision OS)
      
      CRITICAL: Tier 0 is for PAGE WINDOWS only!
      Tier 1-3 go INSIDE Tier 0 containers.
      ───────────────────────────────────────────────── */
-  
+
   /* Tier 0 — Page Window Frame (THE FLOATING PAGE CONTAINER) */
-  --glass-t0-bg: rgba(255, 255, 255, 0.70);
-  --glass-t0-bg-hover: rgba(255, 255, 255, 0.80);
+  --glass-t0-bg: rgba(255, 255, 255, 0.48);
+  --glass-t0-bg-hover: rgba(255, 255, 255, 0.58);
   --glass-t0-blur: blur(60px) saturate(180%);
-  --glass-t0-border: 1.5px solid rgba(255, 255, 255, 0.60);
+  --glass-t0-border: 1.5px solid rgba(255, 255, 255, 0.55);
   --glass-t0-radius: 36px;
   --glass-t0-padding: 64px;
   --glass-t0-padding-mobile: 24px;
   --glass-t0-margin: 40px;
   --glass-t0-margin-mobile: 16px;
-  --glass-t0-shadow: 
+  --glass-t0-shadow:
     0 32px 80px rgba(0, 0, 0, 0.08),
     0 16px 40px rgba(0, 0, 0, 0.04),
     0 0 1px rgba(255, 255, 255, 0.8) inset;
-  
+
   /* Tier 1 — Primary Glass (main sections within window) */
-  --glass-t1-bg: rgba(255, 255, 255, 0.50);
-  --glass-t1-bg-hover: rgba(255, 255, 255, 0.65);
+  --glass-t1-bg: rgba(255, 255, 255, 0.38);
+  --glass-t1-bg-hover: rgba(255, 255, 255, 0.50);
   --glass-t1-blur: blur(24px) saturate(160%);
-  --glass-t1-border: 1px solid rgba(255, 255, 255, 0.40);
+  --glass-t1-border: 1px solid rgba(255, 255, 255, 0.35);
   --glass-t1-radius: 20px;
-  
-  /* Tier 2 — Secondary Glass (nested elements) */
-  --glass-t2-bg: rgba(255, 255, 255, 0.35);
-  --glass-t2-bg-hover: rgba(255, 255, 255, 0.50);
+
+  /* Tier 2 — Secondary Glass (interactive controls) */
+  --glass-t2-bg: rgba(255, 255, 255, 0.28);
+  --glass-t2-bg-hover: rgba(255, 255, 255, 0.40);
   --glass-t2-blur: blur(12px) saturate(140%);
-  --glass-t2-border: 1px solid rgba(255, 255, 255, 0.30);
+  --glass-t2-border: 1px solid rgba(255, 255, 255, 0.25);
   --glass-t2-radius: 12px;
-  
+
   /* Tier 3 — Clear Glass (over media/maps) */
   --glass-t3-bg: rgba(255, 255, 255, 0.60);
   --glass-t3-blur: blur(40px) saturate(200%);
@@ -96,7 +97,7 @@
   --glass-primary: var(--glass-t1-bg);
   --glass-secondary: var(--glass-t2-bg);
   --glass-border: rgba(255, 255, 255, 0.12);
-  
+
   /* ─────────────────────────────────────────────────
      TEXT COLORS — visionOS Vibrancy System (Light Mode)
      
@@ -104,11 +105,15 @@
      visionOS pulls ambient color into text — we 
      approximate with opacity and subtle color tinting.
      ───────────────────────────────────────────────── */
-  --text-primary: rgba(0, 0, 0, 0.95);          /* Primary — titles, values */
-  --text-secondary: rgba(0, 0, 0, 0.70);        /* Secondary — body, labels */
-  --text-tertiary: rgba(0, 0, 0, 0.50);         /* Tertiary — captions, hints */
-  --text-quaternary: rgba(0, 0, 0, 0.30);       /* Quaternary — disabled */
-  
+  --text-primary: rgba(0, 0, 0, 0.95);
+  /* Primary — titles, values */
+  --text-secondary: rgba(0, 0, 0, 0.70);
+  /* Secondary — body, labels */
+  --text-tertiary: rgba(0, 0, 0, 0.50);
+  /* Tertiary — captions, hints */
+  --text-quaternary: rgba(0, 0, 0, 0.30);
+  /* Quaternary — disabled */
+
   /* ─────────────────────────────────────────────────
      SEMANTIC COLORS — Alert/Status System
      
@@ -116,15 +121,19 @@
      than typical Material/Bootstrap. Apple uses 
      gentler alerts that don't scream.
      ───────────────────────────────────────────────── */
-  --color-safe: #34d399;        /* Green — normal driving */
+  --color-safe: #34d399;
+  /* Green — normal driving */
   --color-safe-bg: rgba(52, 211, 153, 0.12);
-  --color-warning: #fbbf24;     /* Amber — MEDIUM severity */
+  --color-warning: #fbbf24;
+  /* Amber — MEDIUM severity */
   --color-warning-bg: rgba(251, 191, 36, 0.12);
-  --color-danger: #f87171;      /* Red (softer) — HIGH severity */
+  --color-danger: #f87171;
+  /* Red (softer) — HIGH severity */
   --color-danger-bg: rgba(248, 113, 113, 0.12);
-  --color-info: #60a5fa;        /* Blue — informational */
+  --color-info: #60a5fa;
+  /* Blue — informational */
   --color-info-bg: rgba(96, 165, 250, 0.12);
-  
+
   /* Ambient glow colors (for box-shadow on severity badges) */
   --glow-safe: 0 0 20px rgba(52, 211, 153, 0.3);
   --glow-warning: 0 0 20px rgba(251, 191, 36, 0.3);
@@ -147,67 +156,100 @@
      is Medium (500), not Regular (400). Titles are 
      Bold (700), not Semibold (600).
      ───────────────────────────────────────────────── */
-  
-  /* Font Family — Apple system stack */
-  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
-    'Inter', 'Segoe UI', system-ui, sans-serif;
-  --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text',
-    'Inter', 'Segoe UI', system-ui, sans-serif;
-  --font-mono: 'SF Mono', 'JetBrains Mono', 'Fira Code', 
+
+  /* Font Family — Inter (consistent across all platforms) */
+  --font-display: 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'SF Mono', 'JetBrains Mono', 'Fira Code',
     Menlo, Monaco, monospace;
 
   /* ── Extra Large Titles (visionOS exclusive) ───────── */
-  --text-display-1: clamp(3.5rem, 3rem + 3vw, 6rem);     /* 56-96px */
-  --text-display-2: clamp(2.5rem, 2rem + 2.5vw, 4.5rem); /* 40-72px */
-  
+  --text-display-1: clamp(3.5rem, 3rem + 3vw, 6rem);
+  /* 56-96px */
+  --text-display-2: clamp(2.5rem, 2rem + 2.5vw, 4.5rem);
+  /* 40-72px */
+
   /* ── Standard Title Hierarchy ──────────────────────── */
-  --text-title-1: clamp(2rem, 1.75rem + 1.25vw, 3rem);   /* 32-48px */
-  --text-title-2: clamp(1.5rem, 1.35rem + 0.75vw, 2rem); /* 24-32px */
-  --text-title-3: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem); /* 20-24px */
-  
+  --text-title-1: clamp(2rem, 1.75rem + 1.25vw, 3rem);
+  /* 32-48px */
+  --text-title-2: clamp(1.5rem, 1.35rem + 0.75vw, 2rem);
+  /* 24-32px */
+  --text-title-3: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);
+  /* 20-24px */
+
   /* ── Body & UI Text ────────────────────────────────── */
-  --text-body: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);  /* 16-18px */
-  --text-callout: clamp(0.9375rem, 0.9rem + 0.2vw, 1rem);/* 15-16px */
-  --text-footnote: clamp(0.8125rem, 0.78rem + 0.15vw, 0.875rem); /* 13-14px */
-  --text-caption: 0.75rem;                                 /* 12px */
-  
+  --text-body: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  /* 16-18px */
+  --text-callout: clamp(0.9375rem, 0.9rem + 0.2vw, 1rem);
+  /* 15-16px */
+  --text-footnote: clamp(0.8125rem, 0.78rem + 0.15vw, 0.875rem);
+  /* 13-14px */
+  --text-caption: 0.75rem;
+  /* 12px */
+
   /* ── Weights (visionOS spatial — one step bolder) ──── */
-  --weight-body: 500;      /* Medium (not Regular 400) */
-  --weight-headline: 600;  /* Semibold */
-  --weight-title: 700;     /* Bold (not Semibold 600) */
-  --weight-display: 800;   /* Extrabold for hero text */
-  
+  --weight-body: 500;
+  /* Medium (not Regular 400) */
+  --weight-headline: 600;
+  /* Semibold */
+  --weight-title: 700;
+  /* Bold (not Semibold 600) */
+  --weight-display: 800;
+  /* Extrabold for hero text */
+
   /* ── Letter Spacing (tighter for display, normal for body) ── */
-  --tracking-tight: -0.02em;   /* Display and titles */
-  --tracking-normal: -0.01em;  /* Body text */
-  --tracking-wide: 0.04em;     /* Captions, labels */
-  
+  --tracking-tight: -0.02em;
+  /* Display and titles */
+  --tracking-normal: -0.01em;
+  /* Body text */
+  --tracking-wide: 0.04em;
+  /* Captions, labels */
+
   /* ── Line Heights ──────────────────────────────────── */
-  --leading-none: 1;        /* Display text */
-  --leading-tight: 1.15;    /* Titles */
-  --leading-snug: 1.35;     /* Subheadings */
-  --leading-normal: 1.5;    /* Body text */
-  --leading-relaxed: 1.65;  /* Long-form content */
+  --leading-none: 1;
+  /* Display text */
+  --leading-tight: 1.15;
+  /* Titles */
+  --leading-snug: 1.35;
+  /* Subheadings */
+  --leading-normal: 1.5;
+  /* Body text */
+  --leading-relaxed: 1.65;
+  /* Long-form content */
 
   /* ─────────────────────────────────────────────────
      SPACING SCALE (4px base unit)
      ───────────────────────────────────────────────── */
-  --space-1: 0.25rem;   /* 4px  — micro gap */
-  --space-2: 0.5rem;    /* 8px  — tight gap */
-  --space-3: 0.75rem;   /* 12px — element gap */
-  --space-4: 1rem;      /* 16px — standard gap */
-  --space-5: 1.25rem;   /* 20px */
-  --space-6: 1.5rem;    /* 24px — component gap */
-  --space-8: 2rem;      /* 32px — section padding */
-  --space-10: 2.5rem;   /* 40px */
-  --space-12: 3rem;     /* 48px — large section gap */
-  --space-16: 4rem;     /* 64px — section margin */
-  --space-20: 5rem;     /* 80px — page section gap */
-  --space-24: 6rem;     /* 96px — hero spacing */
-  
+  --space-1: 0.25rem;
+  /* 4px  — micro gap */
+  --space-2: 0.5rem;
+  /* 8px  — tight gap */
+  --space-3: 0.75rem;
+  /* 12px — element gap */
+  --space-4: 1rem;
+  /* 16px — standard gap */
+  --space-5: 1.25rem;
+  /* 20px */
+  --space-6: 1.5rem;
+  /* 24px — component gap */
+  --space-8: 2rem;
+  /* 32px — section padding */
+  --space-10: 2.5rem;
+  /* 40px */
+  --space-12: 3rem;
+  /* 48px — large section gap */
+  --space-16: 4rem;
+  /* 64px — section margin */
+  --space-20: 5rem;
+  /* 80px — page section gap */
+  --space-24: 6rem;
+  /* 96px — hero spacing */
+
   /* Content constraints */
-  --content-max: 1400px;   /* Max content width */
-  --sidebar-width: 280px;  /* Dashboard sidebar */
+  --content-max: 1400px;
+  /* Max content width */
+  --sidebar-width: 280px;
+  /* Dashboard sidebar */
   --sidebar-collapsed: 72px;
   --navbar-height: 64px;
 
@@ -219,46 +261,46 @@
      (below) and an inner glow (subtle light on top 
      edge) for realism.
      ───────────────────────────────────────────────── */
-  
+
   /* Level 0 — Page Window (MOST DRAMATIC — for Tier 0 glass) */
   --shadow-0-page-window:
     0 32px 80px rgba(0, 0, 0, 0.10),
     0 16px 40px rgba(0, 0, 0, 0.06),
     0 8px 20px rgba(0, 0, 0, 0.04),
     0 0 1px rgba(255, 255, 255, 0.8) inset;
-  
+
   /* Level 1 — Grounded (table rows, list items) */
   --shadow-1: none;
-  
+
   /* Level 2 — Resting (cards, inputs) */
   --shadow-2:
     0 2px 8px rgba(0, 0, 0, 0.06),
     0 1px 3px rgba(0, 0, 0, 0.04);
-  
+
   /* Level 3 — Raised (hovered cards, active elements) */
   --shadow-3:
     0 6px 20px rgba(0, 0, 0, 0.08),
     0 3px 8px rgba(0, 0, 0, 0.05),
     0 0 1px rgba(255, 255, 255, 0.6) inset;
-  
+
   /* Level 4 — Floating (navbar, sidebar, popovers) */
   --shadow-4:
     0 10px 40px rgba(0, 0, 0, 0.10),
     0 5px 12px rgba(0, 0, 0, 0.06),
     0 0 1px rgba(255, 255, 255, 0.7) inset;
-  
+
   /* Level 5 — Elevated (modals, dropdowns) */
   --shadow-5:
     0 20px 60px rgba(0, 0, 0, 0.12),
     0 10px 20px rgba(0, 0, 0, 0.08),
     0 0 1px rgba(255, 255, 255, 0.8) inset;
-  
+
   /* Level 6 — Dramatic (hero elements, focus states) */
   --shadow-6:
     0 24px 64px rgba(0, 0, 0, 0.15),
     0 12px 24px rgba(0, 0, 0, 0.10),
     0 0 1px rgba(255, 255, 255, 0.9) inset;
-    
+
   /* Glass-specific shadow (with colored tint) */
   --shadow-glass:
     0 8px 32px rgba(100, 150, 200, 0.08),
@@ -271,32 +313,50 @@
      standard border-radius. We use generous radii 
      that approximate the feel.
      ───────────────────────────────────────────────── */
-  --radius-xs: 6px;     /* Tiny elements, badges */
-  --radius-sm: 8px;     /* Buttons, chips */
-  --radius-md: 12px;    /* Input fields, small cards */
-  --radius-lg: 16px;    /* Standard cards */
-  --radius-xl: 22px;    /* Main containers (visionOS window feel) */
-  --radius-2xl: 28px;   /* Large cards, hero containers */
-  --radius-3xl: 36px;   /* Full-width sections */
-  --radius-full: 9999px; /* Pills, circular buttons */
+  --radius-xs: 6px;
+  /* Tiny elements, badges */
+  --radius-sm: 8px;
+  /* Buttons, chips */
+  --radius-md: 12px;
+  /* Input fields, small cards */
+  --radius-lg: 16px;
+  /* Standard cards */
+  --radius-xl: 22px;
+  /* Main containers (visionOS window feel) */
+  --radius-2xl: 28px;
+  /* Large cards, hero containers */
+  --radius-3xl: 36px;
+  /* Full-width sections */
+  --radius-full: 9999px;
+  /* Pills, circular buttons */
 
   /* ─────────────────────────────────────────────────
      EASING & TIMING
      ───────────────────────────────────────────────── */
-  
+
   /* Apple's signature easing curves */
-  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);    /* Standard */
-  --ease-in: cubic-bezier(0.4, 0, 1, 1);            /* Accelerate */
-  --ease-out: cubic-bezier(0, 0, 0.2, 1);           /* Decelerate */
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* Bouncy spring */
-  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);     /* Buttery smooth */
-  
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  /* Standard */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  /* Accelerate */
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  /* Decelerate */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Bouncy spring */
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Buttery smooth */
+
   /* Duration scale */
-  --duration-instant: 100ms;  /* Hover states */
-  --duration-fast: 200ms;     /* Button press, focus */
-  --duration-normal: 350ms;   /* Card transitions */
-  --duration-slow: 500ms;     /* Page transitions */
-  --duration-dramatic: 800ms; /* Hero reveals */
+  --duration-instant: 100ms;
+  /* Hover states */
+  --duration-fast: 200ms;
+  /* Button press, focus */
+  --duration-normal: 350ms;
+  /* Card transitions */
+  --duration-slow: 500ms;
+  /* Page transitions */
+  --duration-dramatic: 800ms;
+  /* Hero reveals */
 }
 
 
@@ -310,7 +370,8 @@
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   font-family: var(--font-body);
   font-size: 16px;
   color: var(--text-primary);
@@ -333,6 +394,8 @@ body {
   position: relative;
   min-height: 100vh;
   overflow-x: hidden;
+  isolation: isolate;
+  /* Creates stacking context so z-index:-1 atmosphere stays visible */
 }
 
 
@@ -362,13 +425,11 @@ body {
   height: 70vw;
   top: -25%;
   left: -15%;
-  background: radial-gradient(
-    circle,
-    rgba(138, 43, 226, 0.35) 0%,
-    rgba(102, 126, 234, 0.25) 35%,
-    rgba(118, 75, 162, 0.12) 65%,
-    transparent 90%
-  );
+  background: radial-gradient(circle,
+      rgba(120, 80, 220, 0.55) 0%,
+      rgba(140, 100, 230, 0.35) 35%,
+      rgba(170, 130, 240, 0.15) 65%,
+      transparent 90%);
 }
 
 .orb-2 {
@@ -376,12 +437,10 @@ body {
   height: 60vw;
   bottom: -20%;
   right: -15%;
-  background: radial-gradient(
-    circle,
-    rgba(255, 73, 168, 0.28) 0%,
-    rgba(250, 112, 154, 0.18) 40%,
-    transparent 75%
-  );
+  background: radial-gradient(circle,
+      rgba(255, 120, 170, 0.50) 0%,
+      rgba(255, 160, 200, 0.28) 40%,
+      transparent 75%);
 }
 
 .orb-3 {
@@ -389,12 +448,10 @@ body {
   height: 55vw;
   top: 40%;
   left: -10%;
-  background: radial-gradient(
-    circle,
-    rgba(0, 242, 254, 0.25) 0%,
-    rgba(79, 172, 254, 0.15) 45%,
-    transparent 80%
-  );
+  background: radial-gradient(circle,
+      rgba(60, 190, 255, 0.50) 0%,
+      rgba(100, 210, 255, 0.28) 45%,
+      transparent 80%);
 }
 
 .orb-4 {
@@ -402,12 +459,10 @@ body {
   height: 50vw;
   top: 20%;
   right: 15%;
-  background: radial-gradient(
-    ellipse,
-    rgba(255, 179, 0, 0.18) 0%,
-    rgba(254, 225, 64, 0.10) 50%,
-    transparent 80%
-  );
+  background: radial-gradient(ellipse,
+      rgba(255, 200, 80, 0.45) 0%,
+      rgba(255, 220, 140, 0.25) 50%,
+      transparent 80%);
 }
 
 /* Noise Overlay */
@@ -428,29 +483,30 @@ body {
    ═══════════════════════════════════════════════════ */
 
 .page-window {
-  /* Tier 0 Glass Material */
+  /* Tier 0 Glass Material + Lensing */
   background: var(--glass-t0-bg);
-  backdrop-filter: var(--glass-t0-blur);
-  -webkit-backdrop-filter: var(--glass-t0-blur);
-  
-  /* Window Frame Styling */
-  border: var(--glass-t0-border);
+  backdrop-filter: url(#glass-lens) var(--glass-t0-blur);
+  -webkit-backdrop-filter: url(#glass-lens) var(--glass-t0-blur);
+
+  /* Specular Top Edge Only */
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: var(--glass-t0-radius);
   box-shadow: var(--shadow-0-page-window);
-  
+
   /* Spacing (creates floating effect) */
   margin: var(--glass-t0-margin);
   padding: var(--glass-t0-padding);
-  
+
   /* Size */
   min-height: calc(100vh - calc(var(--glass-t0-margin) * 2));
   width: calc(100vw - calc(var(--glass-t0-margin) * 2));
   max-width: 1800px;
-  
+
   /* Positioning */
   position: relative;
   overflow: hidden;
-  
+
   /* Transitions */
   transition: all 500ms cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -464,12 +520,11 @@ body {
   right: 5%;
   height: 2px;
   background: linear-gradient(90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.0) 10%,
-    rgba(255, 255, 255, 0.9) 50%,
-    rgba(255, 255, 255, 0.0) 90%,
-    transparent 100%
-  );
+      transparent 0%,
+      rgba(255, 255, 255, 0.0) 10%,
+      rgba(255, 255, 255, 0.4) 50%,
+      rgba(255, 255, 255, 0.0) 90%,
+      transparent 100%);
   pointer-events: none;
 }
 
@@ -482,9 +537,8 @@ body {
   bottom: 5%;
   width: 2px;
   background: linear-gradient(180deg,
-    rgba(255, 255, 255, 0.8) 0%,
-    rgba(255, 255, 255, 0.2) 100%
-  );
+      rgba(255, 255, 255, 0.3) 0%,
+      rgba(255, 255, 255, 0.05) 100%);
   pointer-events: none;
 }
 
@@ -502,7 +556,7 @@ body {
 /* Hover Effect (subtle lift) */
 .page-window:hover {
   transform: translateY(-4px);
-  box-shadow: 
+  box-shadow:
     0 36px 90px rgba(0, 0, 0, 0.12),
     0 18px 45px rgba(0, 0, 0, 0.08),
     0 0 1px rgba(255, 255, 255, 0.9) inset;
@@ -536,9 +590,11 @@ body {
 /* Tier 1 Glass Card */
 .glass-card {
   background: var(--glass-t1-bg);
-  backdrop-filter: var(--glass-t1-blur);
-  -webkit-backdrop-filter: var(--glass-t1-blur);
-  border: var(--glass-t1-border);
+  backdrop-filter: url(#glass-lens) var(--glass-t1-blur);
+  -webkit-backdrop-filter: url(#glass-lens) var(--glass-t1-blur);
+  /* Specular Top Edge Only */
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: var(--glass-t1-radius);
   padding: var(--space-6);
   box-shadow: var(--shadow-2);
@@ -546,16 +602,18 @@ body {
   position: relative;
 }
 
+/* Specular gradient highlight reinforcing the top edge */
 .glass-card::before {
   content: '';
   position: absolute;
   top: 0;
-  left: 0;
-  right: 0;
+  left: 10%;
+  right: 10%;
   height: 1px;
-  background: linear-gradient(90deg, 
-    transparent, rgba(255, 255, 255, 0.8), transparent);
+  background: linear-gradient(90deg,
+      transparent, rgba(255, 255, 255, 0.6), transparent);
   pointer-events: none;
+  border-radius: inherit;
 }
 
 .glass-card:hover {
@@ -567,9 +625,11 @@ body {
 /* Tier 2 Glass (nested elements) */
 .glass-nested {
   background: var(--glass-t2-bg);
-  backdrop-filter: var(--glass-t2-blur);
-  -webkit-backdrop-filter: var(--glass-t2-blur);
-  border: var(--glass-t2-border);
+  backdrop-filter: url(#glass-lens) var(--glass-t2-blur);
+  -webkit-backdrop-filter: url(#glass-lens) var(--glass-t2-blur);
+  /* Specular Top Edge Only */
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: var(--glass-t2-radius);
   padding: var(--space-4);
   transition: all var(--duration-fast) var(--ease-default);
@@ -582,9 +642,11 @@ body {
 /* Tier 3 Glass (over media/maps) */
 .glass-overlay {
   background: var(--glass-t3-bg);
-  backdrop-filter: var(--glass-t3-blur);
-  -webkit-backdrop-filter: var(--glass-t3-blur);
-  border: var(--glass-t3-border);
+  backdrop-filter: url(#glass-lens) var(--glass-t3-blur);
+  -webkit-backdrop-filter: url(#glass-lens) var(--glass-t3-blur);
+  /* Specular Top Edge Only */
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: var(--glass-t3-radius);
   padding: var(--space-4);
 }
@@ -596,9 +658,11 @@ body {
 
 .floating-button {
   background: var(--glass-t1-bg);
-  backdrop-filter: var(--glass-t2-blur);
-  -webkit-backdrop-filter: var(--glass-t2-blur);
-  border: var(--glass-t1-border);
+  backdrop-filter: url(#glass-lens) var(--glass-t2-blur);
+  -webkit-backdrop-filter: url(#glass-lens) var(--glass-t2-blur);
+  /* Specular Top Edge Only */
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: var(--radius-full);
   padding: var(--space-3) var(--space-8);
   color: var(--text-primary);
@@ -643,9 +707,11 @@ body {
 
 .input-glass {
   background: var(--glass-t2-bg);
-  backdrop-filter: var(--glass-t2-blur);
-  -webkit-backdrop-filter: var(--glass-t2-blur);
-  border: var(--glass-t2-border);
+  backdrop-filter: url(#glass-lens) var(--glass-t2-blur);
+  -webkit-backdrop-filter: url(#glass-lens) var(--glass-t2-blur);
+  /* Specular Top Edge Only */
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);
   color: var(--text-primary);
@@ -672,27 +738,92 @@ body {
    ═══════════════════════════════════════════════════ */
 
 /* Text utilities */
-.text-primary { color: var(--text-primary); }
-.text-secondary { color: var(--text-secondary); }
-.text-tertiary { color: var(--text-tertiary); }
-.text-quaternary { color: var(--text-quaternary); }
+.text-primary {
+  color: var(--text-primary);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-tertiary {
+  color: var(--text-tertiary);
+}
+
+.text-quaternary {
+  color: var(--text-quaternary);
+}
 
 /* Font weights */
-.font-body { font-weight: var(--weight-body); }
-.font-headline { font-weight: var(--weight-headline); }
-.font-title { font-weight: var(--weight-title); }
-.font-display { font-weight: var(--weight-display); }
+.font-body {
+  font-weight: var(--weight-body);
+}
+
+.font-headline {
+  font-weight: var(--weight-headline);
+}
+
+.font-title {
+  font-weight: var(--weight-title);
+}
+
+.font-display {
+  font-weight: var(--weight-display);
+}
 
 /* Font sizes */
-.text-display-1 { font-size: var(--text-display-1); line-height: var(--leading-none); letter-spacing: var(--tracking-tight); }
-.text-display-2 { font-size: var(--text-display-2); line-height: var(--leading-tight); letter-spacing: var(--tracking-tight); }
-.text-title-1 { font-size: var(--text-title-1); line-height: var(--leading-tight); letter-spacing: var(--tracking-tight); }
-.text-title-2 { font-size: var(--text-title-2); line-height: var(--leading-snug); letter-spacing: var(--tracking-normal); }
-.text-title-3 { font-size: var(--text-title-3); line-height: var(--leading-snug); letter-spacing: var(--tracking-normal); }
-.text-body { font-size: var(--text-body); line-height: var(--leading-normal); letter-spacing: var(--tracking-normal); }
-.text-callout { font-size: var(--text-callout); line-height: var(--leading-normal); }
-.text-footnote { font-size: var(--text-footnote); line-height: var(--leading-normal); }
-.text-caption { font-size: var(--text-caption); line-height: var(--leading-snug); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+.text-display-1 {
+  font-size: var(--text-display-1);
+  line-height: var(--leading-none);
+  letter-spacing: var(--tracking-tight);
+}
+
+.text-display-2 {
+  font-size: var(--text-display-2);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+}
+
+.text-title-1 {
+  font-size: var(--text-title-1);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+}
+
+.text-title-2 {
+  font-size: var(--text-title-2);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-normal);
+}
+
+.text-title-3 {
+  font-size: var(--text-title-3);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-normal);
+}
+
+.text-body {
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-normal);
+}
+
+.text-callout {
+  font-size: var(--text-callout);
+  line-height: var(--leading-normal);
+}
+
+.text-footnote {
+  font-size: var(--text-footnote);
+  line-height: var(--leading-normal);
+}
+
+.text-caption {
+  font-size: var(--text-caption);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
 
 /* Severity badges */
 .badge {
@@ -741,9 +872,14 @@ body {
     --space-12: 2rem;
     --space-16: 2.5rem;
   }
-  
-  .text-display-1 { font-size: clamp(2.5rem, 2rem + 2.5vw, 4rem); }
-  .text-display-2 { font-size: clamp(2rem, 1.5rem + 2vw, 3rem); }
+
+  .text-display-1 {
+    font-size: clamp(2.5rem, 2rem + 2.5vw, 4rem);
+  }
+
+  .text-display-2 {
+    font-size: clamp(2rem, 1.5rem + 2vw, 3rem);
+  }
 }
 
 
@@ -752,6 +888,7 @@ body {
    ═══════════════════════════════════════════════════ */
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -778,4 +915,371 @@ body {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border-width: 0;
+}
+
+
+/* ═══════════════════════════════════════════════════
+   SHOWCASE GRID — Apple visionOS Product Grid
+   Layout: 3 top (aligned) | 2 left + hero + 2 right | 3 bottom (aligned)
+   Side cards are cut off for premium effect
+   ═══════════════════════════════════════════════════ */
+
+/* Outer container clips side cards */
+.showcase-outer-container {
+  position: relative;
+  overflow: hidden;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* Inner grid wrapper */
+.showcase-grid-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  padding: 110px 32px 80px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ── Top & bottom rows: 3 equal cards (aligned to hero width) ── */
+.showcase-row-top,
+.showcase-row-bottom {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  width: 100%;
+  max-width: 1400px;
+}
+
+/* ── Middle container: holds hero + side cards ── */
+.showcase-middle-container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ── Side Cards (Left) - Cut off at edges ── */
+.showcase-side-cards-left {
+  position: absolute;
+  left: -180px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 320px;
+  z-index: 1;
+}
+
+/* ── Side Cards (Right) - Cut off at edges ── */
+.showcase-side-cards-right {
+  position: absolute;
+  right: -180px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 320px;
+  z-index: 1;
+}
+
+/* ── Hero Card — The dominant center tile (80-90% width) ── */
+.showcase-hero-card {
+  width: 85%;
+  max-width: 1100px;
+  border-radius: 40px;
+  padding: 80px 56px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  background-color: #8E7CE2;
+  background-image:
+    radial-gradient(circle at 10% 0%, #2923A8 0%, transparent 60%),
+    radial-gradient(circle at 90% 0%, #F59ABC 0%, transparent 55%),
+    radial-gradient(circle at 0% 100%, #F24D59 0%, transparent 55%),
+    radial-gradient(circle at 100% 100%, #8C8CFF 0%, transparent 60%);
+  border: 1.5px solid rgba(255, 255, 255, 0.30);
+  box-shadow:
+    0 40px 80px -20px rgba(50, 50, 93, 0.22),
+    0 24px 50px -24px rgba(0, 0, 0, 0.25),
+    0 -1px 4px rgba(255, 255, 255, 0.15) inset,
+    0 0 60px rgba(142, 124, 226, 0.35);
+  z-index: 2;
+  margin: 16px 0;
+}
+
+.showcase-hero-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+  pointer-events: none;
+}
+
+.showcase-hero-inner {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Feature Tile ── */
+.feature-tile {
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border-radius: 40px;
+  padding: 60px 36px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.02),
+    0 4px 14px rgba(0, 0, 0, 0.04),
+    0 -1px 3px rgba(255, 255, 255, 0.5) inset;
+  transition:
+    transform 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    backdrop-filter 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 400ms cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: default;
+  position: relative;
+  min-height: 320px;
+  aspect-ratio: 1 / 1.3;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+/* Subtle noise texture overlay for premium feel */
+.feature-tile::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='3.5' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+  z-index: 10;
+  mix-blend-mode: soft-light;
+}
+
+/* Shimmer light reflection overlay */
+.feature-tile::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.15) 50%,
+    transparent 100%
+  );
+  z-index: 11;
+  pointer-events: none;
+  transition: left 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.feature-tile:hover {
+  transform: scale(1.02);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-color: rgba(255, 255, 255, 0.75);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.03),
+    0 8px 24px rgba(0, 0, 0, 0.06),
+    0 -1px 4px rgba(255, 255, 255, 0.7) inset,
+    0 0 0 1px rgba(255, 255, 255, 0.3) inset;
+  transition:
+    transform 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    backdrop-filter 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.feature-tile:hover::before {
+  left: 100%;
+}
+
+.feature-tile__icon {
+  width: 88px;
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-bottom: 16px;
+  transform-style: preserve-3d;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  transition: 
+    transform 300ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1),
+    filter 300ms cubic-bezier(0.4, 0, 0.2, 1),
+    backdrop-filter 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  position: relative;
+  overflow: visible;
+}
+
+/* Add a subtle shine overlay to icons */
+.feature-tile__icon::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, transparent 50%, rgba(255, 255, 255, 0.15) 100%);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.feature-tile__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.feature-tile__desc {
+  display: none;
+}
+
+
+/* ── Responsive: Large screens (≥1600px) ── */
+@media (min-width: 1600px) {
+  .showcase-side-cards-left {
+    left: -120px;
+  }
+  
+  .showcase-side-cards-right {
+    right: -120px;
+  }
+}
+
+/* ── Responsive: Tablet (≤1024px) ── */
+@media (max-width: 1024px) {
+  .showcase-grid-wrapper {
+    padding: 100px 24px 60px;
+    gap: 18px;
+  }
+
+  .showcase-row-top,
+  .showcase-row-bottom {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  /* Hide side cards on tablet */
+  .showcase-side-cards-left,
+  .showcase-side-cards-right {
+    display: none;
+  }
+
+  .showcase-hero-card {
+    width: 90%;
+    padding: 60px 36px;
+    border-radius: 32px;
+    margin: 12px 0;
+  }
+
+  .feature-tile {
+    border-radius: 32px;
+    padding: 48px 28px;
+    min-height: 260px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   visionOS Text Style — Premium Heading
+   ═══════════════════════════════════════════════════ */
+
+.visionos-text {
+  /* 1. The Typography */
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 80px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  
+  /* 2. Liquid Glass Material - Frosted White with Gradient */
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.75) 50%,
+    rgba(255, 255, 255, 0.85) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  
+  /* 3. Glass Edge & Luminous Glow */
+  -webkit-text-stroke: 0.5px rgba(255, 255, 255, 0.6);
+  text-shadow: 
+    0 0 30px rgba(255, 255, 255, 0.5),
+    0 0 60px rgba(255, 255, 255, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.1),
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  
+  /* 4. Atmospheric Depth Shadow */
+  filter: drop-shadow(0px 12px 40px rgba(0, 0, 0, 0.25));
+}
+
+/* ── Responsive: Mobile (≤640px) ── */
+@media (max-width: 640px) {
+  .showcase-grid-wrapper {
+    padding: 88px 14px 48px;
+    gap: 14px;
+  }
+
+  .showcase-row-top,
+  .showcase-row-bottom {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  /* Hide side cards on mobile */
+  .showcase-side-cards-left,
+  .showcase-side-cards-right {
+    display: none;
+  }
+
+  .showcase-hero-card {
+    width: 95%;
+    padding: 44px 20px;
+    border-radius: 26px;
+    margin: 8px 0;
+  }
+
+  .feature-tile {
+    border-radius: 28px;
+    padding: 40px 20px;
+    min-height: 220px;
+  }
+
+  .feature-tile__icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 18px;
+  }
+
+  .feature-tile__title {
+    font-size: 14px;
+  }
 }
