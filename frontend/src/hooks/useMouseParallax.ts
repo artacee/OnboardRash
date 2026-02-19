@@ -68,7 +68,7 @@ const DEFAULT_SPRING_CONFIG: MouseParallaxConfig = {
  * ```
  */
 export function useMouseParallax(
-  maxDisplacement: number = 15,
+  maxDisplacement = 15,
   config: MouseParallaxConfig = {}
 ): MouseParallaxValues {
   // Merge config with defaults

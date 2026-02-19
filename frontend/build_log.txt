@@ -1,0 +1,5 @@
+
+> frontend@0.0.0 build
+> tsc -b && vite build
+
+src/components/layout/index.ts(9,35): error TS2307: Cannot find module './Layout' or its corresponding type declarations.

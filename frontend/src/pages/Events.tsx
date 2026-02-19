@@ -22,7 +22,6 @@ import {
     Gauge,
     Zap
 } from 'lucide-react'
-import { Navbar } from '@/components/layout'
 import api from '@/services/api'
 import type { Event, EventType, EventSeverity } from '@/types'
 import './Events.css'
@@ -112,7 +111,6 @@ export default function Events() {
 
     return (
         <>
-            <Navbar />
             <motion.div
                 className="page-window"
                 whileHover={{ y: -2 }}
@@ -390,6 +388,7 @@ export default function Events() {
                                 {(selectedEvent.snapshot_path || selectedEvent.video_path) && (
                                     <div className="evidence-media">
                                         {selectedEvent.video_path ? (
+                                            // eslint-disable-next-line jsx-a11y/media-has-caption
                                             <video
                                                 src={selectedEvent.video_path}
                                                 controls

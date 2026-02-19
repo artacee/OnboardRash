@@ -1,0 +1,51 @@
+﻿node.exe : 
+At line:1 char:1
++ & "C:\Program Files
+\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo 
+...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (:String   
+ ) [], RemoteExce    
+ption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+Oops! Something went 
+wrong! :(
+
+ESLint: 9.39.2
+
+A configuration 
+object specifies 
+rule "react-refresh/o
+nly-export-components
+", but could not 
+find plugin 
+"react-refresh".
+
+Common causes of 
+this problem include:
+
+1. The 
+"react-refresh" 
+plugin is not 
+defined in your 
+configuration file.
+2. The 
+"react-refresh" 
+plugin is not 
+defined within the 
+same configuration 
+object in which the "
+react-refresh/only-ex
+port-components" 
+rule is applied.
+

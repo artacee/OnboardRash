@@ -1,0 +1,16 @@
+
+> frontend@0.0.0 lint
+> eslint .
+
+
+D:\Downloads\COLLAGE PROJECT\OnboardRash\frontend\src\pages\Dashboard.tsx
+  67:5  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+  93:8  warning  React Hook useCallback has a missing dependency: 'stats'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+D:\Downloads\COLLAGE PROJECT\OnboardRash\frontend\src\pages\Events.tsx
+  393:45  error    Media elements such as <audio> and <video> must have a <track> for captions                    jsx-a11y/media-has-caption
+  396:49  warning  Unused eslint-disable directive (no problems were reported from 'jsx-a11y/media-has-caption')
+
+✖ 4 problems (1 error, 3 warnings)
+  0 errors and 2 warnings potentially fixable with the `--fix` option.
+

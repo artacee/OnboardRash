@@ -12,7 +12,7 @@
  *   <div {...tilt.handlers} style={tilt.style}>...</div>
  */
 
-import { useState, useCallback, useRef, useMemo, CSSProperties } from 'react'
+import { useState, useCallback, useRef, useMemo, type CSSProperties } from 'react'
 import { useReducedMotion } from 'framer-motion'
 
 export interface TiltConfig {

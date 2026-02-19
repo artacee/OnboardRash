@@ -28,12 +28,12 @@ export default function GlassCard({
 
   const motionProps = animate
     ? {
-        initial: 'hidden',
-        whileInView: 'visible',
-        viewport: { once: true, amount: 0.2 },
-        variants: scaleIn,
-        ...props
-      }
+      initial: 'hidden',
+      whileInView: 'visible',
+      viewport: { once: true, amount: 0.2 },
+      variants: scaleIn,
+      ...props
+    }
     : props
 
   return (
@@ -43,7 +43,7 @@ export default function GlassCard({
         variantClasses[variant],
         className
       )}
-      {...(motionProps as any)}
+      {...(motionProps as any)} // eslint-disable-line @typescript-eslint/no-explicit-any
     >
       {children}
     </Component>

@@ -78,7 +78,7 @@ export const statsApi = {
    * GET /api/stats
    */
   async getStats(): Promise<DashboardStats> {
-    const data = await apiFetch<any>('/api/stats')
+    const data = await apiFetch<any>('/api/stats') // eslint-disable-line @typescript-eslint/no-explicit-any
     return {
       total_events_today: data.today_events ?? 0,
       active_buses: data.active_buses ?? 0,
@@ -98,7 +98,7 @@ export const statsApi = {
 /**
  * Map a raw backend event object to the frontend Event type
  */
-export function mapEvent(e: any): Event {
+export function mapEvent(e: any): Event { // eslint-disable-line @typescript-eslint/no-explicit-any
   return {
     id: e.id,
     bus_id: e.bus_id,
@@ -125,7 +125,7 @@ export const eventsApi = {
    */
   async getEvents(params?: GetEventsParams): Promise<Event[]> {
     const queryParams = new URLSearchParams()
-    
+
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined) {
@@ -135,7 +135,7 @@ export const eventsApi = {
     }
 
     const endpoint = `/api/events${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
-    const data = await apiFetch<any>(endpoint)
+    const data = await apiFetch<any>(endpoint) // eslint-disable-line @typescript-eslint/no-explicit-any
     return (data.events || []).map(mapEvent)
   },
 
@@ -144,7 +144,7 @@ export const eventsApi = {
    * GET /api/events/{id}
    */
   async getEventById(id: number): Promise<Event> {
-    const data = await apiFetch<any>(`/api/events/${id}`)
+    const data = await apiFetch<any>(`/api/events/${id}`) // eslint-disable-line @typescript-eslint/no-explicit-any
     return mapEvent(data)
   }
 }
@@ -158,7 +158,7 @@ export const eventsApi = {
 /**
  * Map a raw backend bus location to the frontend BusLocation type
  */
-function mapBusLocation(loc: any): BusLocation {
+function mapBusLocation(loc: any): BusLocation { // eslint-disable-line @typescript-eslint/no-explicit-any
   return {
     bus_id: loc.bus_id,
     registration_number: loc.bus_registration || '',
@@ -178,7 +178,7 @@ export const busesApi = {
    * GET /api/buses
    */
   async getBuses(): Promise<Bus[]> {
-    const data = await apiFetch<any>('/api/buses')
+    const data = await apiFetch<any>('/api/buses') // eslint-disable-line @typescript-eslint/no-explicit-any
     return data.buses || []
   },
 
@@ -187,7 +187,7 @@ export const busesApi = {
    * GET /api/buses/locations
    */
   async getBusLocations(): Promise<BusLocation[]> {
-    const data = await apiFetch<any>('/api/buses/locations')
+    const data = await apiFetch<any>('/api/buses/locations') // eslint-disable-line @typescript-eslint/no-explicit-any
     return (data.locations || []).map(mapBusLocation)
   },
 
@@ -219,7 +219,7 @@ export const exportApi = {
    */
   getExportUrl(params?: ExportParams): string {
     const queryParams = new URLSearchParams()
-    
+
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined) {
@@ -260,6 +260,37 @@ export const authApi = {
 }
 
 /**
+ * ══════════════════════════════════════════════════
+ * SIMULATION API
+ * ══════════════════════════════════════════════════
+ */
+export const simulationApi = {
+  /**
+   * Get simulation status
+   * GET /api/simulation/status
+   */
+  async getStatus(): Promise<{ running: boolean; pid: number | null }> {
+    return apiFetch('/api/simulation/status')
+  },
+
+  /**
+   * Start simulation
+   * POST /api/simulation/start
+   */
+  async start(): Promise<{ status: string; pid: number }> {
+    return apiFetch('/api/simulation/start', { method: 'POST' })
+  },
+
+  /**
+   * Stop simulation
+   * POST /api/simulation/stop
+   */
+  async stop(): Promise<{ status: string }> {
+    return apiFetch('/api/simulation/stop', { method: 'POST' })
+  }
+}
+
+/**
  * ═══════════════════════════════════════════════════
  * COMBINED API EXPORT
  * ═══════════════════════════════════════════════════
@@ -270,7 +301,8 @@ const api = {
   events: eventsApi,
   buses: busesApi,
   export: exportApi,
-  auth: authApi
+  auth: authApi,
+  simulation: simulationApi
 }
 
 export default api

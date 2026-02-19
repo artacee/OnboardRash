@@ -136,15 +136,8 @@ def main():
         print(f'  Frontend ready ->  {actual_frontend_url}')
 
         # 3. Simulator ────────────────────────────────────────
-        print('\n[3/3]  Starting bus simulator...')
-        simulator = subprocess.Popen(
-            [python, SIMULATOR_SCRIPT],
-            cwd=ROOT_DIR,
-            **popen_kwargs,
-        )
-        processes.append(('Simulator', simulator))
-        time.sleep(1)
-        print('  Simulator ready (3 buses, events every 2 s)')
+        print('\n[3/3]  Simulator ready to be started via Settings page.')
+        # simulator = subprocess.Popen(...) - Started manually now
 
         # ── Open browser ────────────────────────────────────
         print(f'\n  Opening browser ->  {actual_frontend_url}')

@@ -39,7 +39,11 @@ export default function AnimatedPage({
             animate="animate"
             exit="exit"
             variants={variants}
-            style={{ width: '100%', height: '100%' }}
+            style={{
+                width: '100%',
+                height: '100%',
+                willChange: 'transform, opacity, filter'
+            }}
         >
             {children}
         </motion.div>

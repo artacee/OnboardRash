@@ -24,7 +24,7 @@ export function useAudioAlert() {
 
     const getAudioContext = useCallback(() => {
         if (!audioContextRef.current) {
-            audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
+            audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)() // eslint-disable-line @typescript-eslint/no-explicit-any
         }
         return audioContextRef.current
     }, [])

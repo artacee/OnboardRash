@@ -16,7 +16,6 @@ import {
     MapPin,
     Bell
 } from 'lucide-react'
-import { Navbar } from '@/components/layout'
 import { StatCard, LiveMap, AlertFeed, QuickActions, SystemHealth } from '@/components/dashboard'
 import { useSocketIO } from '@/hooks'
 import { useAudioAlert } from '@/hooks/useAudioAlert'
@@ -64,6 +63,7 @@ export default function Dashboard() {
     const { playAlert } = useAudioAlert()
 
     // Fetch initial data
+
     const fetchData = useCallback(async () => {
         try {
             const [statsData, busData, eventsData] = await Promise.all([
@@ -81,6 +81,7 @@ export default function Dashboard() {
                 setStats({
                     total_events_today: 0,
                     active_buses: 0,
+                    total_buses: 0,
                     high_severity_count: 0,
                     event_breakdown: {}
                 })
@@ -88,6 +89,7 @@ export default function Dashboard() {
         } finally {
             setIsLoading(false)
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     useEffect(() => {
@@ -96,6 +98,7 @@ export default function Dashboard() {
 
     // Listen for real-time updates
     useEffect(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const unsubAlert = subscribe('new_alert', (rawEvent: any) => {
             const event = mapEvent(rawEvent)
             setEvents(prev => [event, ...prev].slice(0, 50))
@@ -129,9 +132,33 @@ export default function Dashboard() {
         return <DashboardSkeleton />
     }
 
+    // Vision OS Staggered Entry
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        show: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.1,
+                delayChildren: 0.2
+            }
+        }
+    }
+
+    const itemVariants = {
+        hidden: { opacity: 0, y: 20, filter: 'blur(5px)' },
+        show: {
+            opacity: 1,
+            y: 0,
+            filter: 'blur(0px)',
+            transition: {
+                duration: 0.5,
+                ease: [0.2, 0.8, 0.2, 1] as const
+            }
+        }
+    }
+
     return (
         <>
-            <Navbar />
             <motion.div
                 className="page-window"
                 whileHover={{ y: -2 }}
@@ -140,17 +167,21 @@ export default function Dashboard() {
                 <div className="window-grain" />
                 <div className="window-glow" />
 
-                <div className="page-content" style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 'var(--space-8)'
-                }}>
+                <motion.div
+                    className="page-content"
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="show"
+                    style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 'var(--space-8)'
+                    }}
+                >
                     {/* ─── HEADER ─── */}
                     <motion.header
+                        variants={itemVariants}
                         className="dashboard-header"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1, duration: 0.5 }}
                     >
                         <div className="header-main">
                             <div>
@@ -197,9 +228,7 @@ export default function Dashboard() {
 
                     {/* ─── STATS GRID ─── */}
                     <motion.section
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2, duration: 0.5 }}
+                        variants={itemVariants}
                     >
                         <div className="section-header">
                             <h2 style={{
@@ -255,9 +284,7 @@ export default function Dashboard() {
 
                     {/* ─── LIVE MAP ─── */}
                     <motion.section
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3, duration: 0.5 }}
+                        variants={itemVariants}
                     >
                         <div className="section-header">
                             <h2 style={{
@@ -281,9 +308,7 @@ export default function Dashboard() {
 
                     {/* ─── ALERT FEED ─── */}
                     <motion.section
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4, duration: 0.5 }}
+                        variants={itemVariants}
                     >
                         <div className="section-header">
                             <h2 style={{
@@ -315,7 +340,7 @@ export default function Dashboard() {
                             <AlertFeed events={events} maxItems={15} />
                         </div>
                     </motion.section>
-                </div>
+                </motion.div>
             </motion.div>
         </>
     )

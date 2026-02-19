@@ -56,6 +56,20 @@ This document outlines how the **OnboardRash - Rash Driving Detection System** b
 
 ---
 
+## Scenario 2b: Harsh Acceleration (Event)
+*Condition: Driver stomps on the gas pedal at a green light.*
+
+1.  **Sensors**:
+    *   **IMU**: Detects sharp forward acceleration ($X > 1.0g$).
+2.  **Logic**:
+    *   `RashDrivingDetector` triggers `HARSH_ACCEL` event.
+    *   Severity based on intensity (e.g., > 1.0g = **MEDIUM**).
+3.  **Action**:
+    *   Event logged and alert sent to dashboard.
+    *   **Fleet Manager**: Sees "Aggressive Start" violation pattern.
+
+---
+
 ## Scenario 3: Tailgating (Driver Fault)
 *Condition: Bus driver gets too close (2m) to a car in front.*
 
@@ -63,7 +77,7 @@ This document outlines how the **OnboardRash - Rash Driving Detection System** b
     *   **Front Camera**: Vehicle fills the view.
 2.  **Logic**:
     *   **TailgatingDetector**: Uses Haar cascade (`haarcascade_car.xml`) or contour detection.
-    *   Calculates vehicle Area = 20% of frame.
+    *   Calculates vehicle **Area > 15%** of frame (Warning at 10%).
     *   **Night Mode**: If dark, Gamma Correction boosts brightness to see car outline.
     *   Logic: `Area > 15%` sustained for `MIN_DETECTION_FRAMES` (5) → **TAILGATING DETECTED**.
 3.  **Action**:
@@ -112,33 +126,32 @@ This document outlines how the **OnboardRash - Rash Driving Detection System** b
 ```mermaid
 graph TD
     A[Sensors] -->|Raw Data| B(Raspberry Pi)
-    B -->|Accel, GPS| C{Kalman Filter}
+    B -->|Accel, GPS| C{Sensor Fusion<br/>(Kalman Filter)}
     C -->|Fused Speed| D[Detection Engine]
-
+    
     A -->|Distance| E[OvertakingDetector]
     A -->|Video Frame| F[TailgatingDetector]
-
+    
     D -->|Safe| G[Continue Loop]
     D -->|UNSAFE!| H[Create Event]
     E -->|Detected| H
     F -->|Detected| H
-
+    
     H --> I[Capture Evidence]
-    I -->|Video/Snap| J[DataManager]
-
+    I -->|Video/Snap| J[DataManager<br/>(Store & Forward)]
+    
     J --> K{Internet?}
     K -- Yes --> L[POST /api/events]
     K -- No --> M[Queue to SQLite]
-
+    
     M --> N[Sync Thread]
     N -->|Retry Loop| K
-
+    
     L --> O[Flask Backend]
     O --> P[SQLAlchemy DB]
     O --> Q[Socket.IO Broadcast]
-
+    
     Q --> R[React Dashboard]
-    R --> S[Alert Fleet Manager]
 ```
 
 ---

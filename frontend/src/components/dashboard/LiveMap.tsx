@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { motion } from 'framer-motion'
-import { Maximize2, Minimize2, Layers } from 'lucide-react'
+import { Maximize2, Minimize2 } from 'lucide-react'
 import type { BusLocation } from '@/types'
 
 // Custom glass-styled bus marker

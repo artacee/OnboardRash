@@ -138,14 +138,17 @@ export default function Login() {
                                 transition={{ delay: 0.2, duration: 0.4 }}
                                 style={{ marginBottom: 'var(--space-5)' }}
                             >
-                                <label style={{
-                                    display: 'block',
-                                    fontSize: 'var(--text-footnote)',
-                                    fontWeight: 'var(--weight-headline)',
-                                    color: 'var(--text-secondary)',
-                                    marginBottom: 'var(--space-2)',
-                                    letterSpacing: '0.01em'
-                                }}>
+                                <label
+                                    htmlFor="username"
+                                    style={{
+                                        display: 'block',
+                                        fontSize: 'var(--text-footnote)',
+                                        fontWeight: 'var(--weight-headline)',
+                                        color: 'var(--text-secondary)',
+                                        marginBottom: 'var(--space-2)',
+                                        letterSpacing: '0.01em'
+                                    }}
+                                >
                                     Username
                                 </label>
                                 <div style={{
@@ -160,6 +163,7 @@ export default function Login() {
                                         pointerEvents: 'none'
                                     }} />
                                     <input
+                                        id="username"
                                         type="text"
                                         value={username}
                                         onChange={(e) => setUsername(e.target.value)}
@@ -181,14 +185,17 @@ export default function Login() {
                                 transition={{ delay: 0.3, duration: 0.4 }}
                                 style={{ marginBottom: 'var(--space-7)' }}
                             >
-                                <label style={{
-                                    display: 'block',
-                                    fontSize: 'var(--text-footnote)',
-                                    fontWeight: 'var(--weight-headline)',
-                                    color: 'var(--text-secondary)',
-                                    marginBottom: 'var(--space-2)',
-                                    letterSpacing: '0.01em'
-                                }}>
+                                <label
+                                    htmlFor="password"
+                                    style={{
+                                        display: 'block',
+                                        fontSize: 'var(--text-footnote)',
+                                        fontWeight: 'var(--weight-headline)',
+                                        color: 'var(--text-secondary)',
+                                        marginBottom: 'var(--space-2)',
+                                        letterSpacing: '0.01em'
+                                    }}
+                                >
                                     Password
                                 </label>
                                 <div style={{
@@ -203,6 +210,7 @@ export default function Login() {
                                         pointerEvents: 'none'
                                     }} />
                                     <input
+                                        id="password"
                                         type={showPassword ? 'text' : 'password'}
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}

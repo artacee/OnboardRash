@@ -15,111 +15,107 @@
 
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
+import { useEffect } from 'react'
+import Lenis from 'lenis'
+import { HelmetProvider } from 'react-helmet-async'
 import AnimatedPage from '@/components/AnimatedPage'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { Landing, Login, Dashboard, Events, Settings } from '@/pages'
+import { Background } from '@/components/layout/Background'
+import { Navbar } from '@/components/layout'
 import './index.css'
 
 function AnimatedRoutes() {
   const location = useLocation()
 
+  // Initialize Lenis for smooth scrolling
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // Apple-like easing
+      orientation: 'vertical',
+      gestureOrientation: 'vertical',
+      smoothWheel: true,
+      wheelMultiplier: 1,
+      touchMultiplier: 2,
+    })
+
+    function raf(time: number) {
+      lenis.raf(time)
+      requestAnimationFrame(raf)
+    }
+
+    requestAnimationFrame(raf)
+
+    return () => {
+      lenis.destroy()
+    }
+  }, [])
+
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/" element={
-          <AnimatedPage transition="fade-slide">
-            <Landing />
-          </AnimatedPage>
-        } />
-        <Route path="/login" element={
-          <AnimatedPage transition="scale">
-            <Login />
-          </AnimatedPage>
-        } />
-        <Route path="/dashboard" element={
-          <ProtectedRoute>
-            <AnimatedPage transition="slide">
-              <Dashboard />
+    <>
+      <AnimatePresence mode="wait">
+        {location.pathname !== '/' && location.pathname !== '/login' && (
+          <Navbar key={location.pathname} />
+        )}
+      </AnimatePresence>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={
+            <AnimatedPage transition="fade-slide">
+              <Landing />
             </AnimatedPage>
-          </ProtectedRoute>
-        } />
-        <Route path="/events" element={
-          <ProtectedRoute>
-            <AnimatedPage transition="slide">
-              <Events />
+          } />
+          <Route path="/login" element={
+            <AnimatedPage transition="scale">
+              <Login />
             </AnimatedPage>
-          </ProtectedRoute>
-        } />
-        <Route path="/settings" element={
-          <ProtectedRoute>
-            <AnimatedPage transition="slide">
-              <Settings />
-            </AnimatedPage>
-          </ProtectedRoute>
-        } />
-      </Routes>
-    </AnimatePresence>
+          } />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <AnimatedPage transition="slide">
+                <Dashboard />
+              </AnimatedPage>
+            </ProtectedRoute>
+          } />
+          <Route path="/events" element={
+            <ProtectedRoute>
+              <AnimatedPage transition="slide">
+                <Events />
+              </AnimatedPage>
+            </ProtectedRoute>
+          } />
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <AnimatedPage transition="slide">
+                <Settings />
+              </AnimatedPage>
+            </ProtectedRoute>
+          } />
+        </Routes>
+      </AnimatePresence>
+    </>
   )
 }
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-      <div className="app-root">
-        {/* ═══════════════════════════════════════════════════════════════════════
-            SVG LENSING FILTER — Apple-style glass refraction
-            Subtle displacement creates a "bend" in background behind glass.
-            Referenced via backdrop-filter: url(#glass-lens) in CSS.
-            ═══════════════════════════════════════════════════════════════════════ */}
-        <svg
-          aria-hidden="true"
-          style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <defs>
-            <filter id="glass-lens" x="-10%" y="-10%" width="120%" height="120%">
-              {/* Fractal noise generates organic displacement texture */}
-              <feTurbulence
-                type="fractalNoise"
-                baseFrequency="0.015 0.015"
-                numOctaves="3"
-                seed="5"
-                result="noise"
-              />
-              {/* Displace source pixels using the noise — scale=3 is very subtle */}
-              <feDisplacementMap
-                in="SourceGraphic"
-                in2="noise"
-                scale="3"
-                xChannelSelector="R"
-                yChannelSelector="G"
-              />
-            </filter>
-          </defs>
-        </svg>
+    <HelmetProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <div className="app-root">
+            <Background />
 
-        {/* ═══════════════════════════════════════════════════════════════════════
-            ANIMATED ATMOSPHERE BACKGROUND
-            Fixed position, behind all content. 4 gradient orbs + noise.
-            ═══════════════════════════════════════════════════════════════════════ */}
-        <div className="atmosphere">
-          <div className="orb orb-1" />
-          <div className="orb orb-2" />
-          <div className="orb orb-3" />
-          <div className="orb orb-4" />
-          <div className="noise-overlay" />
-        </div>
-
-        {/* ═══════════════════════════════════════════════════════════════════════
+            {/* ═══════════════════════════════════════════════════════════════════════
             PAGE ROUTES
             Each page floats on top of the atmosphere background.
             AnimatePresence enables Vision OS exit/enter transitions.
             ═══════════════════════════════════════════════════════════════════════ */}
-        <AnimatedRoutes />
-      </div>
-      </AuthProvider>
-    </BrowserRouter>
+            <AnimatedRoutes />
+          </div>
+        </AuthProvider>
+      </BrowserRouter>
+    </HelmetProvider>
   )
 }

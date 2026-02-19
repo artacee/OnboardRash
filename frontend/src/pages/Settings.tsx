@@ -21,9 +21,10 @@ import {
     User,
     Route as RouteIcon,
     X,
-    AlertTriangle
+    AlertTriangle,
+    Play,
+    Square
 } from 'lucide-react'
-import { Navbar } from '@/components/layout'
 import api from '@/services/api'
 import type { Bus as BusType } from '@/types'
 import './Settings.css'
@@ -42,6 +43,10 @@ export default function Settings() {
     const [showResetConfirm, setShowResetConfirm] = useState(false)
     const [isResetting, setIsResetting] = useState(false)
     const [resetSuccess, setResetSuccess] = useState(false)
+
+    // Simulation state
+    const [isSimRunning, setIsSimRunning] = useState(false)
+    const [isSimLoading, setIsSimLoading] = useState(false)
 
     // Fetch data
     useEffect(() => {
@@ -65,6 +70,41 @@ export default function Settings() {
             console.error('Failed to fetch settings data:', err)
         } finally {
             setIsLoading(false)
+        }
+    }
+
+    const fetchSimStatus = async () => {
+        try {
+            const status = await api.simulation.getStatus()
+            setIsSimRunning(status.running)
+        } catch (err) {
+            console.error('Failed to fetch simulation status:', err)
+        }
+    }
+
+    // Fetch simulation status on mount
+    useEffect(() => {
+        fetchSimStatus()
+        // Poll every 5 seconds to keep sync
+        const interval = setInterval(fetchSimStatus, 5000)
+        return () => clearInterval(interval)
+    }, [])
+
+    const handleToggleSimulation = async () => {
+        setIsSimLoading(true)
+        try {
+            if (isSimRunning) {
+                await api.simulation.stop()
+                setIsSimRunning(false)
+            } else {
+                await api.simulation.start()
+                setIsSimRunning(true)
+            }
+        } catch (err) {
+            console.error('Failed to toggle simulation:', err)
+            alert('Failed to update simulation state')
+        } finally {
+            setIsSimLoading(false)
         }
     }
 
@@ -95,7 +135,6 @@ export default function Settings() {
 
     return (
         <>
-            <Navbar />
             <motion.div
                 className="page-window"
                 whileHover={{ y: -2 }}
@@ -175,6 +214,64 @@ export default function Settings() {
                         </div>
                     </motion.section>
 
+                    {/* ─── SIMULATION CONTROL ─── */}
+                    <motion.section
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.25, duration: 0.5 }}
+                    >
+                        <h2 className="section-title">Simulation Control</h2>
+                        <div className="glass-card management-card">
+                            <div className="management-info">
+                                <Activity size={32} style={{ color: isSimRunning ? 'var(--color-safe)' : 'var(--text-tertiary)' }} />
+                                <div>
+                                    <h3 style={{
+                                        fontSize: 'var(--text-title-3)',
+                                        fontWeight: 'var(--weight-headline)',
+                                        color: 'var(--text-primary)',
+                                        marginBottom: 'var(--space-1)'
+                                    }}>
+                                        Bus Simulator
+                                    </h3>
+                                    <p style={{
+                                        fontSize: 'var(--text-callout)',
+                                        color: 'var(--text-tertiary)',
+                                        lineHeight: 1.6
+                                    }}>
+                                        {isSimRunning
+                                            ? 'The simulator is currently running and generating events.'
+                                            : 'The simulator is stopped. No new events will be generated.'}
+                                    </p>
+                                </div>
+                            </div>
+                            <motion.button
+                                className={`reset-button ${isSimRunning ? 'stop-button' : 'start-button'}`}
+                                onClick={handleToggleSimulation}
+                                whileHover={{ scale: 1.02, y: -2 }}
+                                whileTap={{ scale: 0.98 }}
+                                disabled={isSimLoading}
+                                style={{
+                                    background: isSimRunning
+                                        ? 'rgba(239, 68, 68, 0.1)'
+                                        : 'rgba(52, 211, 153, 0.1)',
+                                    color: isSimRunning
+                                        ? 'var(--color-danger)'
+                                        : 'var(--color-safe)',
+                                    border: `1px solid ${isSimRunning ? 'rgba(239, 68, 68, 0.2)' : 'rgba(52, 211, 153, 0.2)'}`
+                                }}
+                            >
+                                {isSimLoading ? (
+                                    <RefreshCw size={18} className="spinning" />
+                                ) : isSimRunning ? (
+                                    <Square size={18} fill="currentColor" />
+                                ) : (
+                                    <Play size={18} fill="currentColor" />
+                                )}
+                                {isSimRunning ? 'Stop Simulation' : 'Start Simulation'}
+                            </motion.button>
+                        </div>
+                    </motion.section>
+
                     {/* ─── DATABASE MANAGEMENT ─── */}
                     <motion.section
                         initial={{ opacity: 0, y: 20 }}
@@ -199,7 +296,7 @@ export default function Settings() {
                                         color: 'var(--text-tertiary)',
                                         lineHeight: 1.6
                                     }}>
-                                        Permanently delete all event records from the database. 
+                                        Permanently delete all event records from the database.
                                         This action cannot be undone and will clear all historical data.
                                     </p>
                                 </div>
@@ -225,7 +322,7 @@ export default function Settings() {
                         <h2 className="section-title">
                             Registered Buses ({buses.length})
                         </h2>
-                        
+
                         {isLoading ? (
                             <div className="buses-loading">
                                 {Array.from({ length: 3 }).map((_, i) => (
@@ -268,26 +365,26 @@ export default function Settings() {
                                                     {bus.is_active ? 'Active' : 'Inactive'}
                                                 </span>
                                             </div>
-                                            
+
                                             <div className="bus-card-body">
                                                 <h3 className="bus-registration">
                                                     {bus.registration_number}
                                                 </h3>
-                                                
+
                                                 {bus.driver_name && (
                                                     <div className="bus-detail">
                                                         <User size={16} style={{ color: 'var(--text-tertiary)' }} />
                                                         <span>{bus.driver_name}</span>
                                                     </div>
                                                 )}
-                                                
+
                                                 {bus.route && (
                                                     <div className="bus-detail">
                                                         <RouteIcon size={16} style={{ color: 'var(--text-tertiary)' }} />
                                                         <span>{bus.route}</span>
                                                     </div>
                                                 )}
-                                                
+
                                                 <div className="bus-detail">
                                                     <MapPin size={16} style={{ color: 'var(--text-tertiary)' }} />
                                                     <span className="bus-meta">
@@ -390,7 +487,7 @@ export default function Settings() {
                                         marginBottom: 'var(--space-6)',
                                         lineHeight: 1.6
                                     }}>
-                                        Are you sure you want to delete all event records? This action will permanently 
+                                        Are you sure you want to delete all event records? This action will permanently
                                         remove <strong>{stats?.total_events ?? 0} events</strong> from the database and cannot be undone.
                                     </p>
 

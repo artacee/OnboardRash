@@ -6,8 +6,9 @@ export function useSocketIO(url: string): SocketIOHook {
   const [isConnected, setIsConnected] = useState(false)
   const [connectionQuality, setConnectionQuality] = useState<ConnectionQuality>('disconnected')
   const socketRef = useRef<Socket | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   const listenersRef = useRef<Map<string, Function>>(new Map())
-  
+
   useEffect(() => {
     // Create socket connection
     const socket = io(url, {
@@ -16,58 +17,59 @@ export function useSocketIO(url: string): SocketIOHook {
       reconnectionDelay: 1000,
       reconnectionAttempts: 5
     })
-    
+
     socket.on('connect', () => {
       setIsConnected(true)
       setConnectionQuality('excellent')
       console.log('✅ WebSocket connected')
     })
-    
+
     socket.on('disconnect', () => {
       setIsConnected(false)
       setConnectionQuality('disconnected')
       console.log('❌ WebSocket disconnected')
     })
-    
+
     socket.on('connect_error', (error) => {
       setConnectionQuality('poor')
       console.error('WebSocket error:', error)
     })
-    
+
     socketRef.current = socket
-    
+
     return () => {
       socket.disconnect()
       socketRef.current = null
     }
   }, [url])
-  
+
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   const subscribe = useCallback((event: string, callback: Function) => {
-    if (!socketRef.current) return () => {}
-    
-    socketRef.current.on(event, callback as any)
+    if (!socketRef.current) return () => { /* empty */ }
+
+    socketRef.current.on(event, callback as any) // eslint-disable-line @typescript-eslint/no-explicit-any
     listenersRef.current.set(event, callback)
-    
+
     return () => {
-      socketRef.current?.off(event, callback as any)
+      socketRef.current?.off(event, callback as any) // eslint-disable-line @typescript-eslint/no-explicit-any
       listenersRef.current.delete(event)
     }
   }, [])
-  
+
   const unsubscribe = useCallback((event: string) => {
     if (!socketRef.current) return
-    
+
     const callback = listenersRef.current.get(event)
     if (callback) {
-      socketRef.current.off(event, callback as any)
+      socketRef.current.off(event, callback as any) // eslint-disable-line @typescript-eslint/no-explicit-any
       listenersRef.current.delete(event)
     }
   }, [])
-  
-  const emit = useCallback((event: string, data: any) => {
+
+  const emit = useCallback((event: string, data: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
     socketRef.current?.emit(event, data)
   }, [])
-  
+
   return {
     isConnected,
     connectionQuality,

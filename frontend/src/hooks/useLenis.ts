@@ -9,7 +9,7 @@
  * @see https://lenis.studiofreight.com/
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Lenis from 'lenis'
 
 export interface LenisConfig {
@@ -60,7 +60,7 @@ const DEFAULT_CONFIG: LenisConfig = {
  * ```
  */
 export function useLenis(config: LenisConfig = {}): Lenis | null {
-  const lenisRef = useRef<Lenis | null>(null)
+  const [lenis, setLenis] = useState<Lenis | null>(null)
   const rafRef = useRef<number | null>(null)
 
   useEffect(() => {
@@ -68,7 +68,7 @@ export function useLenis(config: LenisConfig = {}): Lenis | null {
     const mergedConfig = { ...DEFAULT_CONFIG, ...config }
 
     // Initialize Lenis
-    const lenis = new Lenis({
+    const lenisInstance = new Lenis({
       lerp: mergedConfig.lerp,
       duration: mergedConfig.duration,
       orientation: mergedConfig.orientation,
@@ -78,11 +78,11 @@ export function useLenis(config: LenisConfig = {}): Lenis | null {
       infinite: mergedConfig.infinite,
     })
 
-    lenisRef.current = lenis
+    setLenis(lenisInstance)
 
     // RAF loop for smooth updates
     function raf(time: number) {
-      lenis.raf(time)
+      lenisInstance.raf(time)
       rafRef.current = requestAnimationFrame(raf)
     }
 
@@ -95,9 +95,10 @@ export function useLenis(config: LenisConfig = {}): Lenis | null {
         cancelAnimationFrame(rafRef.current)
         rafRef.current = null
       }
-      lenis.destroy()
-      lenisRef.current = null
+      lenisInstance.destroy()
+      setLenis(null)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     config.lerp,
     config.duration,
@@ -108,7 +109,7 @@ export function useLenis(config: LenisConfig = {}): Lenis | null {
     config.infinite,
   ])
 
-  return lenisRef.current
+  return lenis
 }
 
 export default useLenis

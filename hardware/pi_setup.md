@@ -1,241 +1,201 @@
-# Raspberry Pi Hardware Setup Guide
+# Rash Driving Detection System - Production Hardware Guide
 
-## Rash Driving Detection System - IoT Hardware Integration
-
-This guide covers setting up the Raspberry Pi with sensors for real-world deployment.
+This guide provides a comprehensive walkthrough for setting up the **IoT Device (Raspberry Pi)** for the Rash Driving Detection System. It covers architecture, hardware assembly (WikiHow style), software installation, and production deployment on a bus.
 
 ---
 
-## 📋 Hardware Requirements
+## 🏗️ System Architecture
 
-### Minimum Setup with Camera (~₹10,000)
-| Component | Purpose | Estimated Cost |
-|-----------|---------|----------------|
-| Raspberry Pi 4 (4GB) | Main processor | ₹5,500 |
-| MPU-6050 GY-521 | IMU (acceleration) | ₹100 |
-| NEO-6M GPS Module | Location tracking | ₹400 |
-| **Pi Camera Module 3** | **Video evidence** | ₹2,000 |
-| MicroSD Card (32GB) | Storage | ₹300 |
-| Power Bank (10000mAh) | Power supply | ₹800 |
-| Jumper Wires (M-F) | Connections | ₹100 |
-| Breadboard | Prototyping | ₹80 |
+The IoT device is not just a sensor collector; it is an active **Edge AI** device performing real-time analysis.
 
-### Full Setup (~₹26,000)
-Add to minimum:
-- Raspberry Pi 5 (8GB) instead of Pi 4
-- Raspberry Pi AI Kit (Hailo-8L) for ML acceleration
-- HC-SR04 Ultrasonic sensors (x3) for distance
-- SIM7600G-H 4G HAT for cellular connectivity
+### Core Capabilities
+1.  **Sensor Fusion (Kalman Filter):** Combines noisy **GPS** speed data with high-frequency **Accelerometer** data to estimate true vehicle state, robust against GPS signal loss (tunnel/urban canyon).
+2.  **Computer Vision (Edge AI):** Uses the **Front Camera** to detect **Tailgating** behavior by analyzing the proximity of vehicles ahead.
+3.  **Rash Driving Detection:** 
+    *   **IMU:** Detects Harsh Braking, Harsh Acceleration, and Aggressive Turns.
+    *   **Ultrasonic:** Detects unsafe Close Overtaking on the left side.
+4.  **Store & Forward:** If the bus loses internet (4G/WiFi), events are queued locally and synced automatically when connectivity returns.
 
----
-
-## 🔌 Wiring Diagram
-
-```
-                    Raspberry Pi GPIO Header
-                    ═══════════════════════
-                         3V3  (1) (2)  5V
-               MPU SDA ─ GPIO2 (3) (4)  5V ─── MPU VCC, GPS VCC
-               MPU SCL ─ GPIO3 (5) (6)  GND ── MPU GND, GPS GND
-                        GPIO4 (7) (8)  GPIO14 ─ GPS TX
-                          GND (9) (10) GPIO15 ─ GPS RX
-                       GPIO17 (11)(12) GPIO18
-                       GPIO27 (13)(14) GND
-                       GPIO22 (15)(16) GPIO23
-                          3V3 (17)(18) GPIO24
-                       GPIO10 (19)(20) GND
-                        GPIO9 (21)(22) GPIO25
-                       GPIO11 (23)(24) GPIO8
-                          GND (25)(26) GPIO7
-                        GPIO0 (27)(28) GPIO1
-                        GPIO5 (29)(30) GND
-                        GPIO6 (31)(32) GPIO12
-                       GPIO13 (33)(34) GND
-                       GPIO19 (35)(36) GPIO16
-                       GPIO26 (37)(38) GPIO20
-                          GND (39)(40) GPIO21
-
-
-MPU-6050 Connections:
-├── VCC  → Pin 4 (5V)
-├── GND  → Pin 6 (GND)
-├── SDA  → Pin 3 (GPIO2)
-└── SCL  → Pin 5 (GPIO3)
-
-NEO-6M GPS Connections:
-├── VCC  → Pin 4 (5V)
-├── GND  → Pin 6 (GND)
-├── TX   → Pin 10 (GPIO15/RX)
-└── RX   → Pin 8 (GPIO14/TX)
+### Data Flow
+```mermaid
+graph LR
+    subgraph "Raspberry Pi (Bus)"
+        Sensors[GPS, IMU, Ultrasonic] --> Fusion[Sensor Fusion Engine]
+        Cam[Camera] --> CV[Computer Vision / Tailgating]
+        Fusion & CV --> Logic[Event Detector]
+        Logic -->| events | Queue[Local Queue]
+        Queue -->| sync | API[Backend Sync]
+    end
+    
+    API -->| HTTP/WebSocket | Server[Cloud/Laptop Server]
+    Server --> Dashboard[Frontend Dashboard]
 ```
 
 ---
 
-## ⚙️ Raspberry Pi OS Setup
+## 🛒 Hardware Bill of Materials (BOM)
 
-### 1. Flash Raspberry Pi OS
+### **Mandatory Components**
+| Component | Specification | Purpose | Notes |
+|-----------|---------------|---------|-------|
+| **Raspberry Pi 4 Model B** | 4GB/8GB RAM | Core Processor | Runs OpenCV & Sensor Fusion. Pi 3 is too slow for CV. |
+| **MicroSD Card** | 64GB Class 10 (A2) | Storage | A2 class recommended for video write speeds. |
+| **Power Supply** | USB-C, 5V 3A | Power | **Critical:** Must be high quality to prevent undervoltage during CV tasks. |
+| **MPU-6050** | GY-521 Module | Accelerometer/Gyro | Detects forces (Braking, Turns). |
+| **NEO-6M GPS** | Ublox w/ Antenna | Location/Speed | Place antenna near window. |
+| **HC-SR04** | Ultrasonic Sensor | Overtaking Detection | **REQUIRES VOLTAGE DIVIDER.** |
+| **Pi Camera Module 3** | Standard/Wide | Tailgating/Evidence | Mount facing forward (road view). |
+| **Resistors** | **1kΩ and 2kΩ** | **Safety** | **CRITICAL:** Protects Pi GPIO from 5V Echo. |
+| **Power Bank** | 20000mAh PD (18W+) | Bus Power | Ensure it supports "Pass-through charging" if permanently installed. |
+
+---
+
+## 🛠️ WikiHow Style: Step-by-Step Assembly
+
+Follow these steps to build the device.
+
+### **Step 1: Prepare the "Brain" (Raspberry Pi)**
+1.  **Install Heatsinks:** Peel and stick heatsinks on the CPU and RAM chips. Video processing generates heat!
+2.  **Case:** If using a case, install the fan now. Connect Red wire to Pin 4 (5V) and Black to Pin 6 (GND).
+
+### **Step 2: Wiring the MPU-6050 (The Balance Sensor)**
+*   **Goal:** Connect I2C communication.
+*   **Wiring:**
+    *   **VCC** → Pin 1 (3.3V) *[Check your module, some need 5V Pin 2]*
+    *   **GND** → Pin 9 (GND)
+    *   **SCL** → Pin 5 (GPIO 3)
+    *   **SDA** → Pin 3 (GPIO 2)
+
+### **Step 3: Wiring the GPS (The Navigator)**
+*   **Goal:** Connect UART Serial communication.
+*   **Wiring:**
+    *   **VCC** → Pin 4 (5V)
+    *   **GND** → Pin 6 (GND)
+    *   **TX** → Pin 10 (GPIO 15 - RXD)
+    *   **RX** → Pin 8 (GPIO 14 - TXD)
+
+### **Step 4: Wiring the Ultrasonic Sensor (The Side Eye)**
+*   **Goal:** Connect Left-side proximity sensor. **DANGER: 5V LOGIC.**
+*   **Wiring:**
+    *   **VCC** → Pin 2 (5V)
+    *   **GND** → Pin 39 (GND)
+    *   **TRIG** → Pin 16 (GPIO 23)
+    *   **ECHO** → **STOP! Construct Voltage Divider.**
+        *   Connect **ECHO** pin to one end of **1kΩ** resistor.
+        *   Connect *other end* of **1kΩ** to **Pin 18 (GPIO 24)**.
+        *   *Also* connect that same **Pin 18** point to a **2kΩ** resistor.
+        *   Connect the other end of **2kΩ** to **GND**.
+    *   *Why? This reduces the 5V return signal to ~3.3V, saving your Pi.*
+
+### **Step 5: Connect the Camera (The Eyes)**
+1.  Locate the CSI port (between HDMI and Audio jack / or near USB depending on model).
+2.  Lift the plastic clip gently.
+3.  Insert ribbon cable (Blue side facing towards USB/Ethernet ports).
+4.  Push clip down to lock.
+
+### **Step 6: Mounting on the Bus (Pro Tips)**
+*   **Orientation Main Unit:** Mount the Pi flat. The MPU-6050 X-axis arrow should point **FORWARD** (towards driver).
+*   **Camera:** Mount on dashboard/windshield facing **FORWARD**.
+*   **Ultrasonic:** Mount on the **LEFT** side of the bus (window level), facing **OUTWARD**.
+*   **GPS Antenna:** Must have a clear view of the sky (dashboard).
+
+---
+
+## 💻 Software Installation
+
+### 1. OS Setup
+1.  Flash **Raspberry Pi OS Lite (64-bit)**.
+2.  Enable SSH and setup WiFi during flashing.
+
+### 2. System Dependencies
+SSH into the Pi (`ssh pi@rash-pi.local`) and run:
 ```bash
-# Use Raspberry Pi Imager to flash "Raspberry Pi OS Lite (64-bit)"
-# Enable SSH and set username/password during imaging
+sudo apt update
+sudo apt install -y python3-pip python3-venv git i2c-tools libcamera-apps
+# Critical dependencies for OpenCV on Lite OS:
+sudo apt install -y libatlas-base-dev libjasper-dev libhdf5-dev libqt5gui5 libqt5test5
 ```
 
-### 2. Enable I2C and Serial
+### 3. Enable Interfaces
 ```bash
 sudo raspi-config
-# Interface Options → I2C → Enable
-# Interface Options → Serial Port → 
-#   Login shell: No
-#   Serial hardware: Yes
+# 1. Interface Options -> I2C -> Yes
+# 2. Interface Options -> Serial Port -> Shell=No, Hardware=Yes
+# 3. Interface Options -> Camera -> Yes
 sudo reboot
 ```
 
-### 3. Install Dependencies
+### 4. Clone & Install
 ```bash
-sudo apt update
-sudo apt install -y python3-pip python3-venv git i2c-tools
+# On Pi
+git clone https://github.com/yourusername/OnboardRash.git # (Or SCP code from laptop)
+cd OnboardRash/hardware
 
-# Create project directory
-mkdir -p ~/rash-detection
-cd ~/rash-detection
-
-# Create virtual environment
 python3 -m venv venv
 source venv/bin/activate
 
-# Install Python packages
-pip install smbus2 pyserial requests python-dotenv
-
-# For camera support (optional but recommended)
-pip install opencv-python picamera2
+# Install Python libs
+pip install -r requirements.txt
+# If requirements.txt is missing, run:
+pip install smbus2 pyserial requests python-dotenv opencv-python-headless
 ```
 
-### 4. Camera Setup (Pi Camera Module 3)
-```bash
-# Enable camera in raspi-config
-sudo raspi-config
-# Interface Options → Camera → Enable (for legacy)
-# OR for Pi Camera Module 3, it's auto-detected
-
-# Test camera
-libcamera-hello  # Should show camera preview
-
-# Install picamera2 (modern camera API)
-sudo apt install -y python3-picamera2
-
-# For USB webcam, just plug in and it auto-detects
-```
-
-### 5. Verify I2C Connection
-```bash
-# Should show "68" for MPU-6050
-sudo i2cdetect -y 1
-```
-
----
-
-## 📁 Hardware Scripts
-
-Copy the `hardware/` folder from the project to your Raspberry Pi:
-```bash
-scp -r hardware/ pi@raspberrypi:~/rash-detection/
-```
-
----
-
-## 🧪 Testing Sensors
-
-### Test MPU-6050
-```bash
-cd ~/rash-detection
-source venv/bin/activate
-python hardware/sensors/mpu6050.py
-```
-
-Expected output:
-```
-MPU-6050 Initialized
-Accel: X=-0.02g, Y=0.01g, Z=1.00g
-Gyro: X=0.5°/s, Y=-0.3°/s, Z=0.1°/s
-```
-
-### Test GPS
-```bash
-python hardware/sensors/gps.py
-```
-
-Expected output:
-```
-GPS Module Connected
-Lat: 8.8932, Lng: 76.6141
-Speed: 0.0 km/h
-```
-
-### Test Camera
-```bash
-python hardware/sensors/camera.py
-```
-
-Expected output:
-```
-Testing Camera Module...
-Pi Camera initialized (or USB Camera initialized)
-📹 Buffer recording started
-[Press Enter to capture test clip]
-✅ Test successful! Video saved to: recordings/TEST_EVENT_20260121_160000.mp4
-```
-
----
-
-## 🚀 Running on Raspberry Pi
-
-### 1. Configure Server URL
-```bash
-cd ~/rash-detection/hardware
-cp .env.example .env
-nano .env
-# Set SERVER_URL to your backend server IP
-```
-
-### 2. Start the Main Script
-```bash
-source ~/rash-detection/venv/bin/activate
-python hardware/main_pi.py
-```
-
-### 3. Auto-start on Boot
-```bash
-sudo nano /etc/systemd/system/rash-detection.service
-```
-
-Add:
+### 5. Configuration
+Create a `.env` file (`nano .env`):
 ```ini
-[Unit]
-Description=Rash Driving Detection
-After=network.target
-
-[Service]
-User=pi
-WorkingDirectory=/home/pi/rash-detection/hardware
-ExecStart=/home/pi/rash-detection/venv/bin/python main_pi.py
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable:
-```bash
-sudo systemctl enable rash-detection
-sudo systemctl start rash-detection
+SERVER_URL=http://<YOUR_LAPTOP_IP>:5000
+API_KEY=default-secure-key-123
+BUS_REGISTRATION=KL-01-AB-1234
+ENABLE_CAMERA=true
 ```
 
 ---
 
-## ⚠️ Troubleshooting
+## 🚀 Production Deployment (Auto-Start)
+
+To make the system start automatically when the bus turns on (Production Ready).
+
+1.  **Create a Service File:**
+    ```bash
+    sudo nano /etc/systemd/system/rash-detection.service
+    ```
+
+2.  **Add Content:**
+    ```ini
+    [Unit]
+    Description=Rash Driving Detection Service
+    After=network.target
+
+    [Service]
+    User=pi
+    WorkingDirectory=/home/pi/OnboardRash/hardware
+    ExecStart=/home/pi/OnboardRash/hardware/venv/bin/python main_pi.py
+    Restart=always
+    RestartSec=10
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+
+3.  **Enable & Start:**
+    ```bash
+    sudo systemctl daemon-reload
+    sudo systemctl enable rash-detection.service
+    sudo systemctl start rash-detection.service
+    ```
+
+4.  **Check Status:**
+    ```bash
+    sudo systemctl status rash-detection.service
+    ```
+
+---
+
+## 🔧 Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| I2C not detecting MPU-6050 | Check wiring, ensure I2C enabled |
-| GPS not getting fix | Move outdoors, check antenna |
-| Connection refused to server | Check SERVER_URL, firewall |
-| Permission denied on serial | Add user to dialout group: `sudo usermod -a -G dialout pi` |
+| **Camera Error** | Run `libcamera-hello` to test. If "No cameras available", check ribbon cable direction. |
+| **I2C Error** | Run `i2cdetect -y 1`. You should see `68` (MPU). If not, check wiring (SDA/SCL swapped?). |
+| **No GPS Fix** | GPS needs "Cold Start" (5-10 mins outside). LED will blink when fixed. |
+| **Overtake Falses**| Ultrasonic sensor might be seeing the ground. Angle it slightly upward or mount higher. |

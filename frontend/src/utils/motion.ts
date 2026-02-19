@@ -10,7 +10,7 @@
  * </motion.div>
  */
 
-import type { Variant } from 'framer-motion'
+import type { Variant, Transition } from 'framer-motion'
 
 /**
  * Type definitions for better TypeScript support
@@ -19,7 +19,7 @@ export interface AnimationVariants {
   initial: Variant
   animate: Variant
   exit?: Variant
-  transition?: any
+  transition?: Transition
 }
 
 /**
@@ -28,22 +28,22 @@ export interface AnimationVariants {
 export const easings = {
   // Standard easing (most common)
   default: [0.4, 0, 0.2, 1],
-  
+
   // Apple's signature smooth easing
   smooth: [0.16, 1, 0.3, 1],
-  
+
   // Spring-like bounce
   spring: [0.34, 1.56, 0.64, 1],
-  
+
   // Vision OS page transitions
   visionOS: [0.32, 0.72, 0, 1],
-  
+
   // Ease in
   in: [0.4, 0, 1, 1],
-  
+
   // Ease out
   out: [0, 0, 0.2, 1],
-}
+} as const
 
 /**
  * Spring physics presets
@@ -56,7 +56,7 @@ export const springs = {
     damping: 30,
     mass: 0.8,
   },
-  
+
   // Bouncy spring (playful interactions)
   bouncy: {
     type: 'spring' as const,
@@ -64,7 +64,7 @@ export const springs = {
     damping: 25,
     mass: 0.5,
   },
-  
+
   // Stiff spring (quick, snappy)
   stiff: {
     type: 'spring' as const,
@@ -72,7 +72,7 @@ export const springs = {
     damping: 35,
     mass: 0.6,
   },
-  
+
   // Soft spring (smooth, slow)
   soft: {
     type: 'spring' as const,
@@ -93,17 +93,17 @@ export const springs = {
  * Use for: Hero text, cards, content sections
  */
 export const fadeInUp: AnimationVariants = {
-  initial: { 
-    opacity: 0, 
-    y: 40 
+  initial: {
+    opacity: 0,
+    y: 40
   },
-  animate: { 
-    opacity: 1, 
-    y: 0 
+  animate: {
+    opacity: 1,
+    y: 0
   },
-  transition: { 
-    duration: 0.6, 
-    ease: easings.default 
+  transition: {
+    duration: 0.6,
+    ease: easings.default
   },
 }
 
@@ -112,17 +112,17 @@ export const fadeInUp: AnimationVariants = {
  * Use for: Dropdowns, tooltips, popovers
  */
 export const fadeInDown: AnimationVariants = {
-  initial: { 
-    opacity: 0, 
-    y: -20 
+  initial: {
+    opacity: 0,
+    y: -20
   },
-  animate: { 
-    opacity: 1, 
-    y: 0 
+  animate: {
+    opacity: 1,
+    y: 0
   },
-  transition: { 
-    duration: 0.4, 
-    ease: easings.smooth 
+  transition: {
+    duration: 0.4,
+    ease: easings.smooth
   },
 }
 
@@ -131,17 +131,17 @@ export const fadeInDown: AnimationVariants = {
  * Use for: Sidebar content, cards entering from right
  */
 export const fadeInLeft: AnimationVariants = {
-  initial: { 
-    opacity: 0, 
-    x: 40 
+  initial: {
+    opacity: 0,
+    x: 40
   },
-  animate: { 
-    opacity: 1, 
-    x: 0 
+  animate: {
+    opacity: 1,
+    x: 0
   },
-  transition: { 
-    duration: 0.5, 
-    ease: easings.smooth 
+  transition: {
+    duration: 0.5,
+    ease: easings.smooth
   },
 }
 
@@ -150,17 +150,17 @@ export const fadeInLeft: AnimationVariants = {
  * Use for: Side panels, notifications entering from left
  */
 export const fadeInRight: AnimationVariants = {
-  initial: { 
-    opacity: 0, 
-    x: -40 
+  initial: {
+    opacity: 0,
+    x: -40
   },
-  animate: { 
-    opacity: 1, 
-    x: 0 
+  animate: {
+    opacity: 1,
+    x: 0
   },
-  transition: { 
-    duration: 0.5, 
-    ease: easings.smooth 
+  transition: {
+    duration: 0.5,
+    ease: easings.smooth
   },
 }
 
@@ -169,17 +169,17 @@ export const fadeInRight: AnimationVariants = {
  * Use for: Buttons, modals, important alerts
  */
 export const scaleIn: AnimationVariants = {
-  initial: { 
-    opacity: 0, 
-    scale: 0.9 
+  initial: {
+    opacity: 0,
+    scale: 0.9
   },
-  animate: { 
-    opacity: 1, 
-    scale: 1 
+  animate: {
+    opacity: 1,
+    scale: 1
   },
-  transition: { 
-    duration: 0.4, 
-    ease: easings.default 
+  transition: {
+    duration: 0.4,
+    ease: easings.default
   },
 }
 
@@ -188,17 +188,17 @@ export const scaleIn: AnimationVariants = {
  * Use for: Success indicators, achievements, highlights
  */
 export const scaleInBounce: AnimationVariants = {
-  initial: { 
-    opacity: 0, 
-    scale: 0 
+  initial: {
+    opacity: 0,
+    scale: 0
   },
-  animate: { 
-    opacity: 1, 
-    scale: 1 
+  animate: {
+    opacity: 1,
+    scale: 1
   },
-  transition: { 
-    duration: 0.5, 
-    ease: easings.spring 
+  transition: {
+    duration: 0.5,
+    ease: easings.spring
   },
 }
 
@@ -334,14 +334,14 @@ export const rotateAnimation = {
  * Use for: Cards, buttons, interactive elements
  */
 export const hoverLift = {
-  rest: { 
+  rest: {
     y: 0,
     scale: 1,
   },
   hover: {
     y: -4,
     scale: 1.02,
-    transition: { 
+    transition: {
       duration: 0.2,
       ease: easings.out,
     },
@@ -353,12 +353,12 @@ export const hoverLift = {
  * Use for: Images, media, clickable items
  */
 export const hoverScale = {
-  rest: { 
-    scale: 1 
+  rest: {
+    scale: 1
   },
   hover: {
     scale: 1.05,
-    transition: { 
+    transition: {
       duration: 0.3,
       ease: easings.smooth,
     },
@@ -370,13 +370,13 @@ export const hoverScale = {
  * Use for: Glass cards, buttons with effects
  */
 export const hoverGlow = {
-  rest: { 
-    boxShadow: '0 0 0 rgba(255, 255, 255, 0)' 
+  rest: {
+    boxShadow: '0 0 0 rgba(255, 255, 255, 0)'
   },
   hover: {
     boxShadow: '0 0 30px rgba(255, 255, 255, 0.3)',
-    transition: { 
-      duration: 0.3 
+    transition: {
+      duration: 0.3
     },
   },
 }
@@ -386,15 +386,15 @@ export const hoverGlow = {
  * Use for: Premium cards, hero elements
  */
 export const tiltOnHover = {
-  rest: { 
-    rotateX: 0, 
-    rotateY: 0 
+  rest: {
+    rotateX: 0,
+    rotateY: 0
   },
   hover: {
     rotateX: 5,
     rotateY: 5,
-    transition: { 
-      duration: 0.3 
+    transition: {
+      duration: 0.3
     },
   },
 }
@@ -410,10 +410,10 @@ export const tiltOnHover = {
  * Use for: Buttons, clickable cards
  */
 export const tapScale = {
-  tap: { 
+  tap: {
     scale: 0.95,
-    transition: { 
-      duration: 0.1 
+    transition: {
+      duration: 0.1
     },
   },
 }
@@ -423,10 +423,10 @@ export const tapScale = {
  * Use for: Icon buttons, small interactive elements
  */
 export const tapBounce = {
-  tap: { 
+  tap: {
     scale: [1, 0.9, 1.1, 1],
-    transition: { 
-      duration: 0.3 
+    transition: {
+      duration: 0.3
     },
   },
 }
@@ -442,24 +442,24 @@ export const tapBounce = {
  * Use for: Modals, dialogs, overlays
  */
 export const modalVariants: AnimationVariants = {
-  initial: { 
-    opacity: 0, 
-    scale: 0.95, 
-    y: 20 
+  initial: {
+    opacity: 0,
+    scale: 0.95,
+    y: 20
   },
-  animate: { 
-    opacity: 1, 
-    scale: 1, 
-    y: 0 
+  animate: {
+    opacity: 1,
+    scale: 1,
+    y: 0
   },
-  exit: { 
-    opacity: 0, 
-    scale: 0.95, 
-    y: 20 
+  exit: {
+    opacity: 0,
+    scale: 0.95,
+    y: 20
   },
-  transition: { 
-    duration: 0.3, 
-    ease: easings.smooth 
+  transition: {
+    duration: 0.3,
+    ease: easings.smooth
   },
 }
 
@@ -468,17 +468,17 @@ export const modalVariants: AnimationVariants = {
  * Use for: Modal backdrops, overlays
  */
 export const backdropVariants: AnimationVariants = {
-  initial: { 
-    opacity: 0 
+  initial: {
+    opacity: 0
   },
-  animate: { 
-    opacity: 1 
+  animate: {
+    opacity: 1
   },
-  exit: { 
-    opacity: 0 
+  exit: {
+    opacity: 0
   },
-  transition: { 
-    duration: 0.2 
+  transition: {
+    duration: 0.2
   },
 }
 
@@ -487,24 +487,24 @@ export const backdropVariants: AnimationVariants = {
  * Use for: Toasts, alerts, notifications
  */
 export const notificationVariants: AnimationVariants = {
-  initial: { 
-    opacity: 0, 
-    y: -50, 
-    scale: 0.95 
+  initial: {
+    opacity: 0,
+    y: -50,
+    scale: 0.95
   },
-  animate: { 
-    opacity: 1, 
-    y: 0, 
-    scale: 1 
+  animate: {
+    opacity: 1,
+    y: 0,
+    scale: 1
   },
-  exit: { 
-    opacity: 0, 
-    y: -50, 
-    scale: 0.95 
+  exit: {
+    opacity: 0,
+    y: -50,
+    scale: 0.95
   },
-  transition: { 
-    duration: 0.4, 
-    ease: easings.smooth 
+  transition: {
+    duration: 0.4,
+    ease: easings.smooth
   },
 }
 
@@ -513,21 +513,21 @@ export const notificationVariants: AnimationVariants = {
  * Use for: Sidebars, navigation drawers
  */
 export const sidebarVariants: AnimationVariants = {
-  initial: { 
-    x: -300, 
-    opacity: 0 
+  initial: {
+    x: -300,
+    opacity: 0
   },
-  animate: { 
-    x: 0, 
-    opacity: 1 
+  animate: {
+    x: 0,
+    opacity: 1
   },
-  exit: { 
-    x: -300, 
-    opacity: 0 
+  exit: {
+    x: -300,
+    opacity: 0
   },
-  transition: { 
-    duration: 0.3, 
-    ease: easings.smooth 
+  transition: {
+    duration: 0.3,
+    ease: easings.smooth
   },
 }
 
@@ -536,24 +536,24 @@ export const sidebarVariants: AnimationVariants = {
  * Use for: Dropdown menus, select options
  */
 export const dropdownVariants: AnimationVariants = {
-  initial: { 
-    opacity: 0, 
-    y: -10, 
-    scale: 0.95 
+  initial: {
+    opacity: 0,
+    y: -10,
+    scale: 0.95
   },
-  animate: { 
-    opacity: 1, 
-    y: 0, 
-    scale: 1 
+  animate: {
+    opacity: 1,
+    y: 0,
+    scale: 1
   },
-  exit: { 
-    opacity: 0, 
-    y: -10, 
-    scale: 0.95 
+  exit: {
+    opacity: 0,
+    y: -10,
+    scale: 0.95
   },
-  transition: { 
-    duration: 0.2, 
-    ease: easings.out 
+  transition: {
+    duration: 0.2,
+    ease: easings.out
   },
 }
 
@@ -617,7 +617,7 @@ export const pageFade: AnimationVariants = {
 /**
  * Create custom stagger with specified delay
  */
-export const createStagger = (staggerDelay: number, childrenDelay: number = 0) => ({
+export const createStagger = (staggerDelay: number, childrenDelay = 0) => ({
   initial: {},
   animate: {
     transition: {
@@ -630,22 +630,22 @@ export const createStagger = (staggerDelay: number, childrenDelay: number = 0) =
 /**
  * Create custom fade with direction
  */
-export const createFade = (direction: 'up' | 'down' | 'left' | 'right', distance: number = 40) => {
+export const createFade = (direction: 'up' | 'down' | 'left' | 'right', distance = 40) => {
   const axis = direction === 'up' || direction === 'down' ? 'y' : 'x'
   const value = direction === 'up' || direction === 'left' ? distance : -distance
-  
+
   return {
-    initial: { 
-      opacity: 0, 
-      [axis]: value 
+    initial: {
+      opacity: 0,
+      [axis]: value
     },
-    animate: { 
-      opacity: 1, 
-      [axis]: 0 
+    animate: {
+      opacity: 1,
+      [axis]: 0
     },
-    transition: { 
-      duration: 0.5, 
-      ease: easings.smooth 
+    transition: {
+      duration: 0.5,
+      ease: easings.smooth
     },
   }
 }
@@ -653,7 +653,7 @@ export const createFade = (direction: 'up' | 'down' | 'left' | 'right', distance
 /**
  * Create custom spring animation
  */
-export const createSpring = (property: string, values: any[], duration: number = 2) => ({
+export const createSpring = (property: string, values: (number | string)[], duration = 2) => ({
   animate: {
     [property]: values,
     transition: {

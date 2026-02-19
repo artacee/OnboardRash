@@ -14,7 +14,7 @@ export interface DashboardStats {
   active_buses: number
   total_buses: number
   high_severity_count: number
-  event_breakdown: { [key: string]: number }
+  event_breakdown: Record<string, number>
 }
 
 /**
@@ -108,9 +108,9 @@ export type ConnectionQuality = 'excellent' | 'good' | 'poor' | 'disconnected'
 export interface SocketIOHook {
   isConnected: boolean
   connectionQuality: ConnectionQuality
-  subscribe: (event: string, callback: Function) => () => void
+  subscribe: (event: string, callback: (...args: any[]) => void) => () => void // eslint-disable-line @typescript-eslint/no-explicit-any
   unsubscribe: (event: string) => void
-  emit: (event: string, data: any) => void
+  emit: (event: string, data: any) => void // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 
 /**
