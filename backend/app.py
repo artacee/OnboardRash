@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from functools import wraps
 
 from models import db
+from extensions import db, socketio
 
 # Load environment variables
 load_dotenv()
@@ -40,7 +41,7 @@ def require_api_key(f):
 # Initialize extensions
 CORS(app, origins="*")
 db.init_app(app)
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+socketio.init_app(app)
 
 # Import and register blueprints
 from routes.events import events_bp
@@ -79,8 +80,9 @@ def broadcast_alert(event_data):
     socketio.emit('new_alert', event_data)
 
 
-# Make broadcast function available to routes
+# Make broadcast function available to routes (backward compatibility)
 app.broadcast_alert = broadcast_alert
+app.broadcast_bus_update = None # Deprecated, buses.py uses socketio directly
 
 
 # ==================== AUTH ROUTES ====================

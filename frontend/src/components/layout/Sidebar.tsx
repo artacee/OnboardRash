@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link, useLocation } from 'react-router-dom'
-import { 
-  LayoutDashboard, 
-  AlertCircle, 
-  Settings, 
+import {
+  LayoutDashboard,
+  AlertCircle,
+  Settings,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react'

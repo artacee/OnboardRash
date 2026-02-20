@@ -21,25 +21,25 @@ import { useLenis } from '@/hooks'
 // Each has a unique colorScheme for tinted card backgrounds & icon bg
 // ═══════════════════════════════════════════════════════════════════════
 const topFeatures = [
-  { icon: <Cpu className="w-10 h-10" />,          title: 'Edge Computing',     description: 'Raspberry Pi powered processing',  color: 'purple' as const, pattern: 'circuit' as const },
-  { icon: <Camera className="w-10 h-10" />,       title: 'Computer Vision',    description: 'AI-driven detection system',       color: 'pink' as const, pattern: 'viewfinder' as const },
-  { icon: <MapPin className="w-10 h-10" />,       title: 'GPS Tracking',       description: 'Real-time location monitoring',    color: 'cyan' as const, pattern: 'route' as const },
+  { icon: <Cpu className="w-10 h-10" />, title: 'Edge Computing', description: 'Raspberry Pi powered processing', color: 'purple' as const, pattern: 'circuit' as const },
+  { icon: <Camera className="w-10 h-10" />, title: 'Computer Vision', description: 'AI-driven detection system', color: 'pink' as const, pattern: 'viewfinder' as const },
+  { icon: <MapPin className="w-10 h-10" />, title: 'GPS Tracking', description: 'Real-time location monitoring', color: 'cyan' as const, pattern: 'route' as const },
 ]
 
 const bottomFeatures = [
-  { icon: <ShieldCheck className="w-10 h-10" />,  title: 'Safety Alerts',      description: 'Instant driver notifications',     color: 'green' as const, pattern: 'pulse' as const },
-  { icon: <BarChart3 className="w-10 h-10" />,    title: 'Analytics',          description: 'Fleet performance insights',       color: 'blue' as const, pattern: 'chart' as const },
-  { icon: <Zap className="w-10 h-10" />,          title: 'Fast Alerts',        description: 'Sub-second event response',        color: 'lime' as const, pattern: 'bolt' as const },
+  { icon: <ShieldCheck className="w-10 h-10" />, title: 'Safety Alerts', description: 'Instant driver notifications', color: 'green' as const, pattern: 'pulse' as const },
+  { icon: <BarChart3 className="w-10 h-10" />, title: 'Analytics', description: 'Fleet performance insights', color: 'blue' as const, pattern: 'chart' as const },
+  { icon: <Zap className="w-10 h-10" />, title: 'Fast Alerts', description: 'Sub-second event response', color: 'lime' as const, pattern: 'bolt' as const },
 ]
 
 const leftSideFeatures = [
-  { icon: <Bell className="w-10 h-10" />,         title: 'Event Logging',      description: 'Comprehensive incident history',   color: 'orange' as const, pattern: 'waves' as const },
-  { icon: <Gauge className="w-10 h-10" />,        title: 'Speed Monitor',      description: 'Velocity threshold detection',     color: 'teal' as const, pattern: 'speedometer' as const },
+  { icon: <Bell className="w-10 h-10" />, title: 'Event Logging', description: 'Comprehensive incident history', color: 'orange' as const, pattern: 'waves' as const },
+  { icon: <Gauge className="w-10 h-10" />, title: 'Speed Monitor', description: 'Velocity threshold detection', color: 'teal' as const, pattern: 'speedometer' as const },
 ]
 
 const rightSideFeatures = [
-  { icon: <Wifi className="w-10 h-10" />,         title: 'IoT Connected',      description: 'Seamless device integration',      color: 'coral' as const, pattern: 'signal' as const },
-  { icon: <Video className="w-10 h-10" />,        title: 'Video Recording',    description: 'HD dashcam footage capture',       color: 'peach' as const, pattern: 'film' as const },
+  { icon: <Wifi className="w-10 h-10" />, title: 'IoT Connected', description: 'Seamless device integration', color: 'coral' as const, pattern: 'signal' as const },
+  { icon: <Video className="w-10 h-10" />, title: 'Video Recording', description: 'HD dashcam footage capture', color: 'peach' as const, pattern: 'film' as const },
 ]
 
 // ═══════════════════════════════════════════════════════════════════════

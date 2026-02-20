@@ -117,7 +117,36 @@ export default function Dashboard() {
             } : prev)
         })
 
-        return () => { unsubAlert() }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const unsubBus = subscribe('bus_update', (data: any) => {
+            // Backend sends { bus_id: ..., lat: ..., ... } OR a list?
+            // Usually it sends a single bus update or full list depending on implementation.
+            // Let's assume it sends a single bus location object for now, 
+            // BUT I need to verify with app.py first.
+            // PROVISIONAL CODE - I will likely need to adjust this after viewing app.py
+
+            // If data is array:
+            if (Array.isArray(data)) {
+                setBuses(data)
+            } else {
+                // If single update
+                setBuses(prev => {
+                    const index = prev.findIndex(b => b.bus_id === data.bus_id)
+                    if (index >= 0) {
+                        const newBuses = [...prev]
+                        newBuses[index] = { ...newBuses[index], ...data }
+                        return newBuses
+                    } else {
+                        return [...prev, data]
+                    }
+                })
+            }
+        })
+
+        return () => {
+            unsubAlert()
+            unsubBus()
+        }
     }, [subscribe, playAlert])
 
     const handleRefresh = async () => {
@@ -302,7 +331,7 @@ export default function Dashboard() {
                         </div>
 
                         <div className="glass-card" style={{ padding: 'var(--space-4)', overflow: 'hidden' }}>
-                            <LiveMap buses={buses} height={480} />
+                            <LiveMap buses={buses} events={events} height={480} />
                         </div>
                     </motion.section>
 

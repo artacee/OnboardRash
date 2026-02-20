@@ -2,10 +2,10 @@
 Database models for the Rash Driving Detection System.
 Uses Flask-SQLAlchemy for ORM.
 """
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from extensions import db
 
-db = SQLAlchemy()
+# db = SQLAlchemy() # Moved to extensions.py
 
 
 class Bus(db.Model):

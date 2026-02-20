@@ -67,8 +67,9 @@ def start_simulation():
         # but for simple start/stop, Popen is usually enough.
         kwargs = {}
         if sys.platform == 'win32':
-            # Create a new process group so we can kill it independently if needed
-            kwargs['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
+            # Do NOT use CREATE_NEW_PROCESS_GROUP, so it stays in the same group/tree
+            # This ensures taskkill /T on the parent also kills this child
+            pass
         
         simulator_process = subprocess.Popen(
             [python_exe, sim_script],

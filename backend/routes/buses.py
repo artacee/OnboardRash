@@ -146,4 +146,8 @@ def update_location(bus_id):
     
     db.session.commit()
     
+    # Broadcast update directly using socketio
+    from extensions import socketio
+    socketio.emit('bus_update', location.to_dict())
+    
     return jsonify({'status': 'updated', 'location': location.to_dict()})
