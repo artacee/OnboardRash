@@ -252,3 +252,67 @@ def process_event_data(data):
     
     return event, None
 
+
+class Driver(db.Model):
+    """Registered bus driver (for companion app)."""
+    __tablename__ = 'drivers'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
+    full_name = db.Column(db.String(100), nullable=False)
+    phone_number = db.Column(db.String(20), nullable=True)
+    license_number = db.Column(db.String(50), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    trips = db.relationship('Trip', backref='driver', lazy=True)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'full_name': self.full_name,
+            'phone_number': self.phone_number,
+            'license_number': self.license_number,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class Trip(db.Model):
+    """A driving trip/shift linking a driver to a bus."""
+    __tablename__ = 'trips'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    driver_id = db.Column(db.Integer, db.ForeignKey('drivers.id'), nullable=False)
+    bus_id = db.Column(db.Integer, db.ForeignKey('buses.id'), nullable=False)
+    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    ended_at = db.Column(db.DateTime, nullable=True)
+    score = db.Column(db.Float, default=100.0)  # Starts at 100, decreases per event
+    
+    # Relationships
+    bus = db.relationship('Bus', backref=db.backref('trips', lazy=True))
+    
+    def to_dict(self):
+        # Count events during this trip
+        event_count = 0
+        if self.started_at:
+            query = DrivingEvent.query.filter_by(bus_id=self.bus_id)
+            query = query.filter(DrivingEvent.timestamp >= self.started_at)
+            if self.ended_at:
+                query = query.filter(DrivingEvent.timestamp <= self.ended_at)
+            event_count = query.count()
+        
+        return {
+            'id': self.id,
+            'driver_id': self.driver_id,
+            'driver_name': self.driver.full_name if self.driver else None,
+            'bus_id': self.bus_id,
+            'bus_registration': self.bus.registration_number if self.bus else None,
+            'started_at': self.started_at.isoformat() if self.started_at else None,
+            'ended_at': self.ended_at.isoformat() if self.ended_at else None,
+            'score': round(self.score, 1),
+            'event_count': event_count,
+            'is_active': self.ended_at is None,
+        }
+

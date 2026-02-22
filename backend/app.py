@@ -49,12 +49,14 @@ from routes.buses import buses_bp
 from routes.export import export_bp
 from routes.media import media_bp
 from routes.simulation import simulation_bp
+from routes.drivers import drivers_bp
 
 app.register_blueprint(events_bp)
 app.register_blueprint(buses_bp)
 app.register_blueprint(export_bp)
 app.register_blueprint(media_bp)
 app.register_blueprint(simulation_bp)
+app.register_blueprint(drivers_bp)
 
 
 # ==================== SOCKETIO EVENTS ====================
