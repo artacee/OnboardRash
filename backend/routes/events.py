@@ -5,6 +5,7 @@ Handles receiving events from IoT devices and serving data to dashboard.
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timedelta
 from models import db, DrivingEvent, Bus, BusLocation
+from extensions import socketio
 
 events_bp = Blueprint('events', __name__)
 
@@ -39,11 +40,15 @@ def receive_event():
     if error:
         return jsonify(error), 400
     
-    # Return event data for SocketIO broadcast (done in main app)
+    event_dict = event.to_dict()
+    # Broadcast to dashboard
+    socketio.emit('new_alert', event_dict)
+    
+    # Return event data for SocketIO broadcast confirmation
     return jsonify({
         'status': 'received',
         'event_id': event.id,
-        'event': event.to_dict()
+        'event': event_dict
     }), 201
 
 

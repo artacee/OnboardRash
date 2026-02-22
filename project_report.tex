@@ -51,7 +51,7 @@
 OnboardRash is an end-to-end IoT solution for detecting unsafe driving patterns in public transport. The system combines edge computing on Raspberry Pi with a cloud backend and a high-fidelity, VisionOS-inspired real-time dashboard.
 
 \begin{tabularx}{\textwidth}{@{}lX@{}}
-\textbf{Platform:} & Raspberry Pi 4 (Edge) + Flask Server (Cloud) \\
+\textbf{Platform:} & Raspberry Pi 5 (Edge) + Flask Server (Cloud) \\
 \textbf{Communication:} & REST API over 4G/LTE + WebSocket (Socket.IO) for real-time \\
 \textbf{Design System:} & Spatial Glass Interface (4-Tier Material Hierarchy) \\
 \textbf{Dashboard:} & React 19 + TypeScript + Vite 7 + TailwindCSS v4 \\
@@ -104,12 +104,11 @@ The interface implements a high-fidelity \textbf{Spatial Design} system inspired
 \toprule
 \textbf{Component} & \textbf{Model} & \textbf{Function} \\
 \midrule
-Microcontroller & Raspberry Pi 4 & Main processing unit \\
+Microcontroller & Raspberry Pi 5 (2GB) & Main processing unit \\
 IMU & MPU-6050 & 3-axis accelerometer (X/Y/Z in G-force) \\
-GPS & NEO-6M & Location \& speed tracking \\
-Camera & Pi Camera v3 & Front-facing, 640x480 @ 15fps \\
+GPS & Driver's Phone (Companion App) & Location \& speed via WiFi hotspot at 2Hz \\
+Camera & USB Webcam (720p/1080p) & Front-facing, plug-and-play via USB 3.0 \\
 Distance Sensor & HC-SR04 & Ultrasonic (left-side clearance) \\
-Connectivity & 4G LTE HAT & Cellular data transmission \\
 \bottomrule
 \end{tabular}
 
@@ -123,12 +122,11 @@ Events are triggered based on sensor thresholds:
 \toprule
 \textbf{Event} & \textbf{Trigger} & \textbf{Severity} \\
 \midrule
-HARSH\_BRAKE & Accel X < -1.5g & HIGH if X < -1.8g \\
-HARSH\_ACCEL & Accel X > 1.0g & MEDIUM \\
-AGGRESSIVE\_TURN & Accel Y > 0.8g & HIGH if Y > 1.0g \\
-TAILGATING & Vehicle in frame > 15\% (CV) & MEDIUM \\
-CLOSE\_OVERTAKING & Distance < 100cm, duration > 0.5s & MEDIUM \\
-SPEEDING & GPS speed exceeds limit & HIGH \\
+HARSH\_BRAKE & Accel X $<$ -1.5g & HIGH if X $<$ -1.8g \\
+HARSH\_ACCEL & Accel X $>$ 1.0g & MEDIUM \\
+AGGRESSIVE\_TURN & Accel Y $>$ 0.8g & HIGH if Y $>$ 1.0g \\
+TAILGATING & Vehicle in frame $>$ 15\% (CV) & MEDIUM \\
+CLOSE\_OVERTAKING & Distance $<$ 100cm, duration $>$ 0.5s & MEDIUM \\
 \bottomrule
 \end{tabular}
 
@@ -240,7 +238,7 @@ Evidence Viewer & Modal popup with glassmorphic backdrop for snapshots/video \\
 \toprule
 \textbf{Layer} & \textbf{Technologies} \\
 \midrule
-Edge (Pi) & Python 3, smbus2, pyserial, OpenCV, picamera2, Kalman Filter \\
+Edge (Pi) & Python 3, smbus2, OpenCV (opencv-python-headless), Kalman Filter \\
 Backend & Flask 3.0, Flask-SocketIO, SQLAlchemy, Flask-CORS, Blueprints \\
 Database & SQLite with SQLAlchemy ORM (file-based, both edge and cloud) \\
 Frontend & React 19, TypeScript, Vite 7, TailwindCSS v4, Zustand \\

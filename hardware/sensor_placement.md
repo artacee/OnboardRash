@@ -11,8 +11,9 @@
                               ║   │           RASPBERRY PI + SENSORS               │   ║
                               ║   │           mounted on dashboard                 │   ║
                               ║   │                                                │   ║
-                              ║   │   📦 Pi + MPU-6050 + GPS                       │   ║
-                              ║   │   📹 FRONT CAMERA (Tailgating Detection)       │   ║
+                              ║   │   📦 Pi 5 + MPU-6050                             │   ║
+                              ║   │   📱 Driver's Phone (GPS via hotspot)           │   ║
+                              ║   │   🎥 USB WEBCAM (Tailgating Detection)          │   ║
                               ║   │      Faces FORWARD ───►                        │   ║
                               ║   │                                                │   ║
                               ║   └────────────────────────────────────────────────┘   ║
@@ -53,22 +54,26 @@
 
 | Sensor | Location | Direction | Purpose |
 |--------|----------|-----------|---------|
-| **Raspberry Pi** | Dashboard | N/A | Main processing unit |
+| **Raspberry Pi 5** | Dashboard | N/A | Main processing unit |
 | **MPU-6050 (IMU)** | Dashboard (with Pi) | N/A | Detects harsh braking/turns |
-| **GPS Module** | Dashboard (with Pi) | Sky View | Location & speed tracking |
-| **Front Camera** | Dashboard / Windshield | Facing Forward | Detects if **driver** is tailgating vehicle ahead |
+| **GPS Source** | Driver's Phone | N/A | Location & speed via WiFi hotspot (replaces NEO-6M when `GPS_SOURCE=phone`) |
+| **NEO-6M GPS** *(optional)* | Dashboard, sky view | Sky View | Hardware GPS — only if `GPS_SOURCE=hardware` |
+| **USB Webcam** | Dashboard / Windshield | Facing Forward | Detects if **driver** is tailgating vehicle ahead |
 | **Ultrasonic (LEFT)** | Left side, mid-bus | Facing Outward | Detects close overtaking vehicles on the left |
 
 ---
 
 ## 🔧 Mounting Details
 
-### 1. Dashboard Unit (Pi + Camera + IMU + GPS)
+### 1. Dashboard Unit (Pi + Camera + IMU)
 ```
 Location: Center of dashboard or windshield mount
 Camera: Facing ROAD AHEAD (Forward) to see vehicle in front
 IMU: Mount flat and level (X-axis points forward)
-GPS: Antenna with clear view of sky (top of dashboard)
+
+GPS Note: No hardware GPS antenna needed when using the Driver Companion App.
+          The driver's phone provides GPS data over WiFi hotspot.
+          Set GPS_SOURCE=phone in hardware/.env
 
 Tailgating View:
      ┌─────────────────────────────────────────┐
@@ -127,7 +132,8 @@ ECHO (5V) ────[1kΩ]────┬──── GPIO24 (3.3V)
 
 - [ ] **Raspberry Pi** mounted securely under dashboard (vibration dampened)
 - [ ] **MPU-6050** is flat, level, and X-axis points to front of bus
-- [ ] **GPS Antenna** has clear view of sky (not under metal)
+- [ ] **Driver's Phone** on hotspot and running the Companion App with trip started
+- [ ] **GPS_SOURCE=phone** set in `hardware/.env` (or NEO-6M wired if `GPS_SOURCE=hardware`)
 - [ ] **Front Camera** is mounted on windshield facing FORWARD (for tailgating)
 - [ ] **Ultrasonic Sensor** on Left Side, properly drilled/mounted
 - [ ] **Voltage Divider** installed for Ultrasonic ECHO pin

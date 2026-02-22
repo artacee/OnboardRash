@@ -100,7 +100,12 @@ class BusSimulator:
         
         # Random chance of rash driving event
         if random.random() < EVENT_PROBABILITY:
-            event_type = random.choice(['HARSH_BRAKE', 'HARSH_ACCEL', 'AGGRESSIVE_TURN'])
+            # Weight probabilities so IMU events are more common than camera/ultrasonic
+            event_type = random.choices(
+                ['HARSH_BRAKE', 'HARSH_ACCEL', 'AGGRESSIVE_TURN', 'TAILGATING', 'CLOSE_OVERTAKING'],
+                weights=[30, 30, 20, 10, 10], 
+                k=1
+            )[0]
             
             if event_type == 'HARSH_BRAKE':
                 accel_x = random.uniform(-2.0, -1.5)  # Strong braking
@@ -119,6 +124,16 @@ class BusSimulator:
                 event = {
                     'type': 'AGGRESSIVE_TURN',
                     'severity': 'MEDIUM' if abs(accel_y) < 1.0 else 'HIGH'
+                }
+            elif event_type == 'TAILGATING':
+                event = {
+                    'type': 'TAILGATING',
+                    'severity': random.choice(['MEDIUM', 'HIGH'])
+                }
+            elif event_type == 'CLOSE_OVERTAKING':
+                event = {
+                    'type': 'CLOSE_OVERTAKING',
+                    'severity': 'MEDIUM'
                 }
         
         return {

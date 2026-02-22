@@ -147,7 +147,7 @@ class DataManager:
                 return False
                 
             event_response = response.json()
-            event_id = event_response.get('id')
+            event_id = event_response.get('event_id')
             
             # 2. Upload Video (if applicable)
             # The backend API /api/events/<id>/video expects multipart form

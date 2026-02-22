@@ -5,7 +5,7 @@
 import * as SecureStore from 'expo-secure-store';
 
 // Default to localhost for dev; change for production
-const DEFAULT_API_URL = 'http://192.168.1.100:5000';
+const DEFAULT_API_URL = 'http://192.168.1.40:5000';
 
 let apiUrl = DEFAULT_API_URL;
 

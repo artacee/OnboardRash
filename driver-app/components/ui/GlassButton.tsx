@@ -11,6 +11,7 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
 import { theme } from '@/constants/theme';
 
 interface GlassButtonProps {
@@ -51,7 +52,10 @@ export function GlassButton({
 
     return (
         <TouchableOpacity
-            onPress={onPress}
+            onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onPress();
+            }}
             disabled={disabled || loading}
             activeOpacity={0.7}
             style={[

@@ -1,16 +1,61 @@
-# Byte-compiled / optimized / DLL files
+# ═══ Python ═══
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
 
-# Distribution / packaging
+# ═══ Flask / Backend ═══
+instance/
+.webassets-cache
+uploads/
+recordings/
+
+# ═══ Node / Frontend ═══
+node_modules/
+dist/
+.next/
+.cache/
+
+# ═══ Expo / Driver App ═══
+.expo/
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+
+# ═══ Environment ═══
+.env
+.env.local
+.env.*.local
+venv/
+ENV/
+
+# ═══ Database ═══
+*.db
+*.sqlite3
+
+# ═══ IDE ═══
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ═══ OS ═══
+.DS_Store
+Thumbs.db
+
+# ═══ Logs & Debug Output ═══
+*.log
+build_log.txt
+eslint_errors.txt
+eslint_output*.txt
+tsc_output*.txt
+lint_log.txt
+
+# ═══ Build Artifacts ═══
 .Python
 build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
@@ -23,29 +68,3 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
-# Flask
-instance/
-.webassets-cache
-
-# Env
-.env
-venv/
-ENV/
-
-# Database
-*.db
-*.sqlite3
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log

@@ -10,7 +10,7 @@ from flask_socketio import SocketIO, emit
 from dotenv import load_dotenv
 from functools import wraps
 
-from models import db
+from models import db as models_db # Kept for explicit import chain if needed, but not shadowing
 from extensions import db, socketio
 
 # Load environment variables
@@ -131,34 +131,7 @@ def health_check():
     return jsonify({'status': 'healthy', 'service': 'rash-driving-detection'})
 
 
-# ==================== OVERRIDE EVENTS ROUTE ====================
-# Re-register the events POST to include SocketIO broadcast
-
-from routes.events import receive_event as original_receive_event
-
-@app.route('/api/events', methods=['POST'], endpoint='events_with_broadcast')
-@require_api_key
-def receive_event_with_broadcast():
-    """Receive event and broadcast to dashboard.
-    AUTHENTICATED ENDPOINT
-    """
-    from models import process_event_data
-    
-    data = request.get_json()
-    event, error = process_event_data(data)
-    
-    if error:
-        return jsonify(error), 400
-    
-    # Broadcast to all connected clients
-    event_dict = event.to_dict()
-    broadcast_alert(event_dict)
-    
-    return jsonify({
-        'status': 'received',
-        'event_id': event.id,
-        'event': event_dict
-    }), 201
+# SocketIO broadcast logic has been moved to routes/events.py
 
 
 # ==================== DATABASE INITIALIZATION ====================

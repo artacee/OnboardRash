@@ -29,7 +29,6 @@ from dotenv import load_dotenv
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from sensors.mpu6050 import MPU6050
-from sensors.gps import GPSModule
 from sensors.ultrasonic import UltrasonicSensor, OvertakingDetector
 from sensors.sensor_fusion import KalmanFilter
 from sensors.phone_gps import PhoneGPSReceiver
@@ -54,8 +53,7 @@ SAMPLE_RATE = float(os.getenv('SAMPLE_RATE', '0.1'))  # 100ms = 10Hz
 ENABLE_CAMERA = os.getenv('ENABLE_CAMERA', 'true').lower() == 'true'
 API_KEY = os.getenv('API_KEY', 'default-secure-key-123')
 
-# GPS source: 'hardware' (NEO-6M serial) or 'phone' (Driver Companion App)
-GPS_SOURCE = os.getenv('GPS_SOURCE', 'hardware')
+# Phone GPS receiver port
 PHONE_GPS_PORT = int(os.getenv('PHONE_GPS_PORT', '8081'))
 
 # Detection thresholds (in g-force)
@@ -175,16 +173,9 @@ def main():
         print(f"❌ MPU-6050 failed: {e}. Check I2C.")
         sys.exit(1)
     
-    # 2. GPS (hardware NEO-6M or phone companion app)
-    if GPS_SOURCE == 'phone':
-        gps = PhoneGPSReceiver(port=PHONE_GPS_PORT)
-        print(f"📱 GPS Source: Driver Companion App (port {PHONE_GPS_PORT})")
-    else:
-        try:
-            gps = GPSModule()
-        except Exception:
-            print(f"⚠️ GPS failed. Continuing...")
-            gps = None
+    # 2. GPS (phone companion app)
+    gps = PhoneGPSReceiver(port=PHONE_GPS_PORT)
+    print(f"📱 GPS Source: Driver Companion App (port {PHONE_GPS_PORT})")
         
     # 3. Kalman Filter (Sensor Fusion)
     kf = KalmanFilter(initial_speed=0)

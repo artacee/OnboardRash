@@ -1,202 +1,221 @@
 # System Workflow & Scenarios
 
-This document outlines how the **OnboardRash - Rash Driving Detection System** behaves in different real-world conditions, explaining the flow of data from sensors to the dashboard.
+This document describes how the **OnboardRash - Rash Driving Detection System** behaves across the full 4-node architecture, including the new Driver Companion App.
 
 ---
 
 ## Architecture Overview
 
 ```
-+-------------------+          +------------------+          +------------------+
-|   Raspberry Pi    |  HTTP    |   Flask Backend  |  Socket  |  React Frontend  |
-|                   | -------> |                  | <------> |                  |
-| - Sensor Fusion   |          | - REST API       |          | - Zustand Store  |
-| - DataManager     |          | - SQLAlchemy     |          | - TailwindCSS    |
-| - Event Detection |          | - Socket.IO      |          | - Real-time UI   |
-+-------------------+          +------------------+          +------------------+
+  ┌─────────────────┐   WiFi Hotspot (2Hz GPS POST)  ┌──────────────────────┐
+  │  Driver's Phone  │◄──────────────────────────────►│   Raspberry Pi        │
+  │  (Expo App)      │   http://192.168.43.1:8081      │   (Bus Hardware)      │
+  │                  │                                 │                       │
+  │ expo-location    │                                 │ PhoneGPSReceiver :8081│
+  │ GPS Stream       │                                 │ IMU, Ultrasonic, Cam  │
+  │ Trip Management  │                                 │ DataManager (S&F)     │
+  └────────┬─────────┘                                 └──────────┬────────────┘
+           │                                                      │
+           │  Both connect to backend via                         │
+           │  phone's hotspot internet                            │
+           │                                                      │
+           ▼                                                      ▼
+  ┌─────────────────────────────────────────────────────────────────────────────┐
+  │                        Flask Backend  :5000                                 │
+  │                                                                             │
+  │  /api/drivers  ←── Driver app (auth, trips, events)                         │
+  │  /api/events   ←── Pi (HARSH_BRAKE, TAILGATING, etc.)                       │
+  │  /api/buses    ←── Pi (bus registration on startup)                         │
+  │  WebSocket     ──► React dashboard (live alerts, bus locations)              │
+  └──────────────────────────────┬──────────────────────────────────────────────┘
+                                 │
+                                 │ Browser
+                                 ▼
+                        ┌─────────────────┐
+                        │  React Frontend  │
+                        │  localhost:5173  │
+                        │                 │
+                        │  Live Map       │
+                        │  Events Table   │
+                        │  Dashboard      │
+                        └─────────────────┘
 ```
 
 ---
 
-## Scenario 1: Normal Driving
-*Condition: Bus is moving smoothly on a highway.*
+## Node Responsibilities
 
-1.  **Sensors**:
-    *   **IMU**: Reads low acceleration values (< 0.5g).
-    *   **GPS**: specific lat/long, Speed = 60 km/h.
-    *   **Kalman Filter**: Fuses data, outputting a smooth 60 km/h.
-    *   **Camera**: Capturing frames to buffer (rolling 5s), but discarding old ones.
-2.  **Logic**:
-    *   RashDrivingDetector: Checks thresholds → All Safe.
-    *   TailgatingDetector: Front vehicle > 10m away (< 5% frame) → Safe.
-    *   OvertakingDetector: Side clear → Safe.
-3.  **Action**:
-    *   No "Events" created.
-    *   **Dashboard**: Shows green status, live location updates on map via periodic location POST.
+| Node | Runs On | Responsibility |
+|---|---|---|
+| **Raspberry Pi** | Pi on the bus | Detects rash events via IMU/Ultrasonic/Camera. Receives GPS from phone's app. Sends events to backend via phone's internet. |
+| **Driver's Phone** | Android/iOS | Streams GPS to Pi at 2Hz. Provides internet access to Pi via WiFi hotspot. Lets driver manage trips and view their score. |
+| **Flask Backend** | Laptop/Server | Central API. Stores all events, buses, drivers, trips in SQLite. Broadcasts real-time alerts via WebSocket. |
+| **React Dashboard** | Browser | Operations team view. Live bus map, event feed, alerts with audio. |
 
 ---
 
-## Scenario 2: Harsh Braking (Event)
-*Condition: Driver slams brakes to avoid a dog.*
+## Scenario 1: Driver Starts a Shift
 
-1.  **Sensors**:
-    *   **IMU**: Detects sharp deceleration ($X < -1.5g$).
-    *   Kalman Filter handles vibration noise.
-2.  **Logic**:
-    *   `RashDrivingDetector.analyze()` triggers `HARSH_BRAKE` event.
-    *   Severity calculated based on G-force (e.g., -1.9g = **HIGH** severity).
-    *   5-second cooldown prevents duplicate events.
-3.  **Evidence Capture**:
-    *   **Camera**: saves video clip (previous 5s buffer + next 5s) → `HARSH_BRAKE_...mp4`.
-    *   **Snapshot**: Captures immediate JPEG.
-4.  **Transmission**:
-    *   `DataManager.queue_event()` called.
-    *   **Online**: Event JSON uploaded immediately to `/api/events`. Media uploaded to `/api/events/{id}/snapshot`.
-    *   **Dashboard**: Receives Socket.IO `new_alert` event, shows toast notification and plays audio alert for HIGH severity.
+*Condition: Driver arrives at the bus depot.*
+
+1. **Driver** opens the Expo app → logs in → taps **Start Trip**.
+2. **App** calls `POST /api/drivers/me/trip/start` → backend creates a `Trip` record.
+3. **App** requests location permission and starts `expo-location` background task.
+4. **GPS Stream** begins: every 500ms, app POSTs `{ lat, lng, speed, heading }` to `http://192.168.43.1:8081/gps`.
+5. **Raspberry Pi** receives GPS data via `PhoneGPSReceiver` — identical interface to hardware NEO-6M GPS.
+6. **Pi** uses the phone as both internet gateway (via hotspot) and GPS source.
 
 ---
 
-## Scenario 2b: Harsh Acceleration (Event)
-*Condition: Driver stomps on the gas pedal at a green light.*
+## Scenario 2: Normal Driving
 
-1.  **Sensors**:
-    *   **IMU**: Detects sharp forward acceleration ($X > 1.0g$).
-2.  **Logic**:
-    *   `RashDrivingDetector` triggers `HARSH_ACCEL` event.
-    *   Severity based on intensity (e.g., > 1.0g = **MEDIUM**).
-3.  **Action**:
-    *   Event logged and alert sent to dashboard.
-    *   **Fleet Manager**: Sees "Aggressive Start" violation pattern.
+*Condition: Bus moving smoothly at 60 km/h.*
+
+1. **IMU**: Low acceleration (< 0.5g). **Phone GPS**: lat/lng + 60 km/h.
+2. **Kalman Filter**: Fuses IMU acceleration + phone GPS speed → smooth 60 km/h.
+3. **RashDrivingDetector**: All thresholds safe → no event.
+4. **Pi**: POSTs current bus location to `/api/buses/locations` periodically.
+5. **Dashboard**: Shows green bus marker on live map, no alerts.
 
 ---
 
-## Scenario 3: Tailgating (Driver Fault)
-*Condition: Bus driver gets too close (2m) to a car in front.*
+## Scenario 3: Harsh Braking (Event Detected)
 
-1.  **Sensors**:
-    *   **Front Camera**: Vehicle fills the view.
-2.  **Logic**:
-    *   **TailgatingDetector**: Uses Haar cascade (`haarcascade_car.xml`) or contour detection.
-    *   Calculates vehicle **Area > 15%** of frame (Warning at 10%).
-    *   **Night Mode**: If dark, Gamma Correction boosts brightness to see car outline.
-    *   Logic: `Area > 15%` sustained for `MIN_DETECTION_FRAMES` (5) → **TAILGATING DETECTED**.
-3.  **Action**:
-    *   Alert queued via DataManager and sent to backend.
-    *   Dashboard shows "Tailgating" violation with event details.
+*Condition: Driver slams brakes.*
 
----
-
-## Scenario 4: Close Overtaking (Traffic Logic)
-*Condition: A motorbike squeezes between the bus and median.*
-
-1.  **Sensors**:
-    *   **Left Ultrasonic (HC-SR04)**: Distance drops to 80cm (< 1m).
-    *   **GPS/Kalman Filter**: Fused Speed = 45 km/h.
-2.  **Logic**:
-    *   **OvertakingDetector**:
-        *   Is Speed > 10 km/h? **YES** (Valid motion).
-        *   Is Distance < 100 cm? **YES** (Danger zone).
-        *   Is Duration > 0.5s? **YES** (Real vehicle, not a pole).
-    *   Result: `CLOSE_OVERTAKING` Event with MEDIUM severity.
-3.  **Action**:
-    *   Event logged with GPS coordinates. Fleet manager sees dangerous overtake hotspots.
+1. **IMU**: Sharp deceleration X < -1.5g.
+2. **Kalman Filter** smooths out vibration noise; sustained deceleration confirmed.
+3. **RashDrivingDetector**: Triggers `HARSH_BRAKE`. Severity: `HIGH` if X < -1.8g.
+4. **Evidence**: Camera saves 5s pre-event + 5s post-event clip. Snapshot captured.
+5. **DataManager.queue_event()**: Uploads immediately to `POST /api/events`.
+6. **Backend**: Saves event, broadcasts `new_alert` via Socket.IO.
+7. **Driver App**: Polls `/api/drivers/me/events` every 5s → shows alert with **red severity glow**.
+8. **Dashboard**: Receives WebSocket event → shows toast + audio alert.
+9. **Trip Score**: Decreases by 15 points (HIGH penalty).
 
 ---
 
-## Scenario 5: Loss of Internet (Offline Mode)
-*Condition: Bus enters a remote area with no 4G signal.*
+## Scenario 4: Harsh Acceleration
 
-1.  **Event Occurs**: e.g., Aggressive Turn detected.
-2.  **Transmission Failure**:
-    *   `requests.post` fails (Connection Error/Timeout).
-3.  **DataManager**:
-    *   Catches error in `_upload_event()`.
-    *   **Queues Event**: Saves JSON payload + video/snapshot paths to local SQLite (`events_queue.db`).
-4.  **Recovery**:
-    *   Bus re-enters city (4G returns).
-    *   `DataManager._sync_loop()` background thread detects connectivity.
-    *   **Auto-Upload**: Pushes all queued events to server in FIFO order.
-    *   Successful events removed from local queue.
-    *   **Dashboard**: Receives backlogged events with original timestamps.
+*Condition: Driver stomps gas at a green light.*
+
+1. **IMU**: X > 1.0g forward.
+2. `HARSH_ACCEL` event, `MEDIUM` severity.
+3. Logged and broadcast. **Trip Score** decreases by 8 points.
 
 ---
 
-## Data Flow Summary
+## Scenario 5: Tailgating
+
+*Condition: Bus too close to vehicle ahead.*
+
+1. **Front Camera**: Vehicle area > 15% of frame for 5+ consecutive frames.
+2. `TAILGATING` event triggered. Evidence snapshot captured.
+3. Event sent to backend, appears on dashboard and driver app.
+
+---
+
+## Scenario 6: Close Overtaking
+
+*Condition: Motorbike squeezes on left side.*
+
+1. **HC-SR04 Ultrasonic** (left side): Distance < 100cm.
+2. **PhoneGPS speed** (via Kalman): > 10 km/h (vehicle moving, not parked).
+3. Duration > 0.5s (real vehicle, not a pole).
+4. `CLOSE_OVERTAKING` event, `MEDIUM` severity. GPS coordinates logged.
+
+---
+
+## Scenario 7: Phone Hotspot Drops (Offline Mode)
+
+*Condition: Driver's hotspot disconnects momentarily.*
+
+1. Pi's `DataManager._upload_event()` fails (ConnectionError).
+2. Event queued to local SQLite (`events_queue.db`).
+3. `_sync_loop()` background thread retries every 5 seconds.
+4. When hotspot reconnects → events uploaded automatically in FIFO order.
+5. Dashboard receives backlogged events with original timestamps.
+
+---
+
+## Scenario 8: Driver Ends Shift
+
+1. Driver taps **End Trip** in app.
+2. App calls `POST /api/drivers/me/trip/stop`.
+3. Background GPS task stops (foreground service notification disappears).
+4. **Backend** counts all events during the trip, calculates final score (start 100 → subtract per event severity), stores on `Trip` record.
+5. App shows final score + event count summary.
+
+---
+
+## Full Data Flow Diagram
 
 ```mermaid
 graph TD
-    A[Sensors] -->|Raw Data| B(Raspberry Pi)
-    B -->|Accel, GPS| C{Sensor Fusion<br/>(Kalman Filter)}
-    C -->|Fused Speed| D[Detection Engine]
-    
-    A -->|Distance| E[OvertakingDetector]
-    A -->|Video Frame| F[TailgatingDetector]
-    
-    D -->|Safe| G[Continue Loop]
-    D -->|UNSAFE!| H[Create Event]
-    E -->|Detected| H
-    F -->|Detected| H
-    
-    H --> I[Capture Evidence]
-    I -->|Video/Snap| J[DataManager<br/>(Store & Forward)]
-    
-    J --> K{Internet?}
-    K -- Yes --> L[POST /api/events]
-    K -- No --> M[Queue to SQLite]
-    
-    M --> N[Sync Thread]
-    N -->|Retry Loop| K
-    
-    L --> O[Flask Backend]
-    O --> P[SQLAlchemy DB]
-    O --> Q[Socket.IO Broadcast]
-    
-    Q --> R[React Dashboard]
+    Phone["📱 Driver's Phone\n(Expo App)"] -->|"GPS POST @2Hz\nhttp://pi:8081/gps"| Pi["🖥️ Raspberry Pi"]
+    Phone -->|"Trip start/stop\nauth, events\nPOST /api/drivers"| Backend["☁️ Flask Backend\n:5000"]
+
+    subgraph "Raspberry Pi (Bus Edge)"
+        Pi --> PGps["PhoneGPSReceiver\n:8081"]
+        Pi --> IMU["MPU-6050\nIMU Sensor"]
+        Pi --> Ultra["HC-SR04\nUltrasonic"]
+        Pi --> Cam["USB Webcam\n(Front)"]
+        PGps & IMU --> Fusion["Kalman Filter\nSensor Fusion"]
+        Fusion --> Detect["RashDrivingDetector"]
+        Ultra --> OD["OvertakingDetector"]
+        Cam --> TD["TailgatingDetector"]
+        Detect & OD & TD -->|"event"| DM["DataManager\nStore & Forward"]
+    end
+
+    DM -->|"POST /api/events\nvia hotspot internet"| Backend
+
+    Backend --> DB["SQLite DB\nEvents, Buses,\nDrivers, Trips"]
+    Backend -->|"Socket.IO new_alert"| Dashboard["🖥️ React Dashboard\nlocalhost:5173"]
+    Backend -->|"GET /api/drivers/me/events"| Phone
 ```
 
 ---
 
-## Backend API Flow
+## Backend API Reference
 
-1. **Event Reception** (`POST /api/events`):
-   - Validate API key header
-   - Process event data via `process_event_data()`
-   - Store in SQLAlchemy `DrivingEvent` model
-   - Update `BusLocation` if location provided
-   - Broadcast via `socketio.emit('new_alert', event_dict)`
-
-2. **Media Upload** (`POST /api/events/{id}/snapshot`):
-   - Accept multipart file or base64 JSON
-   - Save to `uploads/` directory
-   - Update event record with `snapshot_url`
-
-3. **Dashboard Fetch** (`GET /api/events`, `/api/buses/locations`):
-   - Query with filters (severity, type, date range)
-   - Return paginated JSON results
-   - Frontend polls locations every 10s
-
----
-
-## Frontend State Management
-
-- **Zustand Stores**:
-  - `useBusStore`: Fleet data and locations
-  - `useEventStore`: Events list and filters
-  - `useUIStore`: UI state (sidebar, modals)
-
-- **Real-time Updates**:
-  - Socket.IO client connects on app mount
-  - `new_alert` events trigger toast notifications
-  - High severity events play audio alert (Howler.js)
+| Method | Endpoint | Caller | Purpose |
+|---|---|---|---|
+| `POST` | `/api/events` | Pi | Log a rash driving event |
+| `POST` | `/api/events/{id}/snapshot` | Pi | Upload video/snapshot |
+| `GET` | `/api/events` | Dashboard | Fetch event list with filters |
+| `GET` | `/api/buses/locations` | Dashboard | Live bus positions (map) |
+| `POST` | `/api/buses` | Pi | Register bus on startup |
+| `POST` | `/api/drivers/register` | Driver App | Create driver account |
+| `POST` | `/api/drivers/login` | Driver App | Authenticate driver |
+| `GET` | `/api/drivers/me` | Driver App | Profile + stats |
+| `POST` | `/api/drivers/me/trip/start` | Driver App | Start a trip |
+| `POST` | `/api/drivers/me/trip/stop` | Driver App | End trip, finalize score |
+| `GET` | `/api/drivers/me/events` | Driver App | Events during active trip |
+| `GET` | `/api/drivers/me/trips` | Driver App | Trip history |
 
 ---
 
 ## Key Configuration (Environment Variables)
 
+### hardware/.env (Raspberry Pi)
 | Variable | Default | Description |
-|----------|---------|-------------|
-| `SERVER_URL` | `http://localhost:5000` | Backend API URL |
+|---|---|---|
+| `SERVER_URL` | `http://192.168.1.40:5000` | Backend URL (via phone hotspot) |
 | `API_KEY` | `default-secure-key-123` | API authentication key |
-| `BUS_REGISTRATION` | `KL-01-TEST-001` | Bus identifier |
+| `BUS_REGISTRATION` | `KL-01-AB-1234` | Bus identifier |
 | `SAMPLE_RATE` | `0.1` | Sensor read interval (10Hz) |
 | `ENABLE_CAMERA` | `true` | Enable camera module |
+| `GPS_SOURCE` | `phone` | `phone` or `hardware` (NEO-6M) |
+| `PHONE_GPS_PORT` | `8081` | Port for PhoneGPSReceiver |
+
+### Driver App (Profile → Settings)
+| Setting | Default | Description |
+|---|---|---|
+| Pi Address | `http://192.168.43.1:8081` | Pi's GPS receiver endpoint |
+| Backend Server | `http://192.168.1.40:5000` | Flask backend |
+
+### Frontend / Backend
+| Variable | Description |
+|---|---|
+| `VITE_API_URL` | Backend URL for React frontend |
+| `FLASK_ENV` | `development` or `production` |

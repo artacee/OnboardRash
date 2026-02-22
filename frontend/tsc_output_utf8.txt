@@ -1,6 +1,0 @@
-﻿src/components/dashboard/LiveMap.tsx(15,32): error TS6133: 'Layers' is declared but its value is never read.
-src/components/dashboard/StatCard.tsx(12,18): error TS6133: 'useAnimation' is declared but its value is never read.
-src/components/layout/Background.tsx(1,1): error TS6133: 'ReactNode' is declared but its value is never read.
-src/hooks/useTilt.ts(15,50): error TS1484: 'CSSProperties' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
-src/pages/Dashboard.tsx(81,26): error TS2345: Argument of type '{ total_events_today: number; active_buses: number; high_severity_count: number; event_breakdown: {}; }' is not assignable to parameter of type 'SetStateAction<DashboardStats | null>'.
-  Property 'total_buses' is missing in type '{ total_events_today: number; active_buses: number; high_severity_count: number; event_breakdown: {}; }' but required in type 'DashboardStats'.

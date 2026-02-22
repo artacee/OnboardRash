@@ -1,5 +1,5 @@
 /**
- * History Screen — Trip history with scores and event counts.
+ * History Screen — Trip history with staggered animations and haptics.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -12,30 +12,29 @@ import {
     TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { AnimatedEntry } from '@/components/ui/AnimatedEntry';
 import { theme } from '@/constants/theme';
 import * as api from '@/services/api';
 
 export default function HistoryScreen() {
     const [trips, setTrips] = useState<any[]>([]);
     const [refreshing, setRefreshing] = useState(false);
-    const [expandedTrip, setExpandedTrip] = useState<number | null>(null);
 
     const fetchTrips = useCallback(async () => {
         try {
             const data = await api.getTrips();
             setTrips(data.trips || []);
-        } catch (err) {
-            // Silent fail
-        }
+        } catch { }
     }, []);
 
-    useEffect(() => {
-        fetchTrips();
-    }, []);
+    useEffect(() => { fetchTrips(); }, []);
 
     const onRefresh = async () => {
+        Haptics.selectionAsync();
         setRefreshing(true);
         await fetchTrips();
         setRefreshing(false);
@@ -82,86 +81,93 @@ export default function HistoryScreen() {
                 }
             >
                 {/* Header */}
-                <View style={styles.header}>
-                    <Text style={styles.title}>Trip History</Text>
-                    <Text style={styles.subtitle}>{trips.length} trips recorded</Text>
-                </View>
+                <AnimatedEntry delay={0}>
+                    <View style={styles.header}>
+                        <Text style={styles.title}>Trip History</Text>
+                        <Text style={styles.subtitle}>{trips.length} trips recorded</Text>
+                    </View>
+                </AnimatedEntry>
 
                 {/* Trip List */}
                 {trips.length === 0 ? (
-                    <GlassCard tier={1} style={styles.emptyCard}>
-                        <Ionicons name="time-outline" size={48} color={theme.colors.textQuaternary} />
-                        <Text style={styles.emptyText}>No trips yet</Text>
-                        <Text style={styles.emptySubtext}>
-                            Start your first trip from the Home tab
-                        </Text>
-                    </GlassCard>
+                    <AnimatedEntry delay={100}>
+                        <GlassCard tier={1} style={styles.emptyCard}>
+                            <Ionicons name="time-outline" size={48} color={theme.colors.textQuaternary} />
+                            <Text style={styles.emptyText}>No trips yet</Text>
+                            <Text style={styles.emptySubtext}>
+                                Start your first trip from the Home tab
+                            </Text>
+                        </GlassCard>
+                    </AnimatedEntry>
                 ) : (
-                    trips.map((trip) => {
+                    trips.map((trip, index) => {
                         const scoreColor = getScoreColor(trip.score);
-                        const isExpanded = expandedTrip === trip.id;
-
                         return (
-                            <TouchableOpacity
-                                key={trip.id}
-                                onPress={() => setExpandedTrip(isExpanded ? null : trip.id)}
-                                activeOpacity={0.7}
-                            >
-                                <GlassCard tier={1} style={styles.tripCard}>
-                                    {/* Top row */}
-                                    <View style={styles.tripHeader}>
-                                        <View style={styles.tripInfo}>
-                                            <Text style={styles.tripDate}>
-                                                {formatDate(trip.started_at)}
-                                            </Text>
-                                            <Text style={styles.tripTime}>
-                                                {formatTime(trip.started_at)}
-                                                {trip.ended_at ? ` — ${formatTime(trip.ended_at)}` : ''}
-                                            </Text>
-                                        </View>
-                                        <View style={[styles.scoreBadge, { borderColor: scoreColor }]}>
-                                            <Text style={[styles.scoreBadgeText, { color: scoreColor }]}>
-                                                {Math.round(trip.score)}
-                                            </Text>
-                                        </View>
-                                    </View>
+                            <AnimatedEntry key={trip.id} delay={100 + index * 80}>
+                                <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    onPress={() => Haptics.selectionAsync()}
+                                >
+                                    <GlassCard tier={1} style={styles.tripCard}>
+                                        {/* Top row */}
+                                        <View style={styles.tripHeader}>
+                                            <View style={styles.tripInfo}>
+                                                <Text style={styles.tripDate}>
+                                                    {formatDate(trip.started_at)}
+                                                </Text>
+                                                <Text style={styles.tripTime}>
+                                                    {formatTime(trip.started_at)}
+                                                    {trip.ended_at ? ` — ${formatTime(trip.ended_at)}` : ''}
+                                                </Text>
+                                            </View>
 
-                                    {/* Stats row */}
-                                    <View style={styles.tripStats}>
-                                        <View style={styles.statItem}>
-                                            <Ionicons name="bus-outline" size={14} color={theme.colors.textTertiary} />
-                                            <Text style={styles.statText}>
-                                                {trip.bus_registration || 'N/A'}
-                                            </Text>
+                                            {/* Score mini ring */}
+                                            <View style={[styles.scoreBadge, { borderColor: scoreColor }]}>
+                                                <Text style={[styles.scoreBadgeText, { color: scoreColor }]}>
+                                                    {Math.round(trip.score)}
+                                                </Text>
+                                            </View>
                                         </View>
-                                        <View style={styles.statItem}>
-                                            <Ionicons name="timer-outline" size={14} color={theme.colors.textTertiary} />
-                                            <Text style={styles.statText}>
-                                                {formatDuration(trip.started_at, trip.ended_at)}
-                                            </Text>
-                                        </View>
-                                        <View style={styles.statItem}>
-                                            <Ionicons name="warning-outline" size={14} color={theme.colors.textTertiary} />
-                                            <Text style={styles.statText}>
-                                                {trip.event_count} events
-                                            </Text>
-                                        </View>
-                                    </View>
 
-                                    {/* Active badge */}
-                                    {trip.is_active && (
-                                        <View style={styles.activeBadge}>
-                                            <View style={styles.activeDot} />
-                                            <Text style={styles.activeText}>Active</Text>
+                                        {/* Stats row */}
+                                        <View style={styles.tripStats}>
+                                            <View style={styles.statItem}>
+                                                <Ionicons name="bus-outline" size={14} color={theme.colors.textTertiary} />
+                                                <Text style={styles.statText}>
+                                                    {trip.bus_registration || 'N/A'}
+                                                </Text>
+                                            </View>
+                                            <View style={styles.statItem}>
+                                                <Ionicons name="timer-outline" size={14} color={theme.colors.textTertiary} />
+                                                <Text style={styles.statText}>
+                                                    {formatDuration(trip.started_at, trip.ended_at)}
+                                                </Text>
+                                            </View>
+                                            <View style={styles.statItem}>
+                                                <Ionicons name="warning-outline" size={14} color={theme.colors.textTertiary} />
+                                                <Text style={styles.statText}>
+                                                    {trip.event_count} events
+                                                </Text>
+                                            </View>
                                         </View>
-                                    )}
-                                </GlassCard>
-                            </TouchableOpacity>
+
+                                        {/* Active badge */}
+                                        {trip.is_active && (
+                                            <Animated.View
+                                                entering={FadeIn.duration(300)}
+                                                style={styles.activeBadge}
+                                            >
+                                                <View style={styles.activeDot} />
+                                                <Text style={styles.activeText}>Active</Text>
+                                            </Animated.View>
+                                        )}
+                                    </GlassCard>
+                                </TouchableOpacity>
+                            </AnimatedEntry>
                         );
                     })
                 )}
 
-                {/* Bottom spacer */}
                 <View style={{ height: 100 }} />
             </ScrollView>
         </SafeAreaView>
@@ -169,16 +175,12 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
+    container: { flex: 1 },
     scrollContent: {
         paddingHorizontal: theme.spacing.xl,
         paddingTop: theme.spacing.base,
     },
-    header: {
-        marginBottom: theme.spacing.xl,
-    },
+    header: { marginBottom: theme.spacing.xl },
     title: {
         fontFamily: theme.fonts.title,
         fontSize: theme.fontSize.title1,
@@ -210,9 +212,7 @@ const styles = StyleSheet.create({
         fontWeight: theme.fontWeight.body,
         color: theme.colors.textQuaternary,
     },
-    tripCard: {
-        marginBottom: theme.spacing.md,
-    },
+    tripCard: { marginBottom: theme.spacing.md },
     tripHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
