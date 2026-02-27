@@ -141,7 +141,18 @@ def main():
 
         # ── Open browser ────────────────────────────────────
         print(f'\n  Opening browser ->  {actual_frontend_url}')
-        webbrowser.open(actual_frontend_url)
+        try:
+            edge = webbrowser.get('windows-default' if sys.platform != 'win32' else None)
+            # Try to register and use Edge explicitly
+            webbrowser.register(
+                'edge',
+                None,
+                webbrowser.BackgroundBrowser('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'),
+            )
+            edge_browser = webbrowser.get('edge')
+            edge_browser.open(actual_frontend_url)
+        except Exception:
+            webbrowser.open(actual_frontend_url)  # fallback to default
 
         # ── Summary ─────────────────────────────────────────
         print()

@@ -50,6 +50,7 @@ from routes.export import export_bp
 from routes.media import media_bp
 from routes.simulation import simulation_bp
 from routes.drivers import drivers_bp
+from routes.analytics import analytics_bp
 
 app.register_blueprint(events_bp)
 app.register_blueprint(buses_bp)
@@ -57,6 +58,7 @@ app.register_blueprint(export_bp)
 app.register_blueprint(media_bp)
 app.register_blueprint(simulation_bp)
 app.register_blueprint(drivers_bp)
+app.register_blueprint(analytics_bp)
 
 
 # ==================== SOCKETIO EVENTS ====================
@@ -169,4 +171,4 @@ if __name__ == '__main__':
     print("API Docs: POST /api/events, GET /api/events, GET /api/buses")
     print("="*60 + "\n")
     
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True, allow_unsafe_werkzeug=True)

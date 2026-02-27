@@ -19,49 +19,48 @@
 
 /* ─── CUSTOM MARKERS ─── */
 .custom-bus-marker {
-    transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
-    /* Smooth movement */
+    /* rAF loop handles all movement — no CSS transition needed here */
     will-change: transform;
 }
 
-/* The "Puck" Marker Container */
+/* The "Puck" Marker Container — entire element rotates via JS */
 .bus-puck {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
+    /* Smooth heading rotation between updates */
+    transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* Heading Cone (Rotates with bus) */
+/* Heading Cone (points forward, rotates with parent puck) */
 .bus-heading-cone {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 120px;
-    height: 120px;
-    background: radial-gradient(circle at center, rgba(52, 211, 153, 0.15) 0%, transparent 70%);
-    clip-path: polygon(50% 50%, 0% 0%, 100% 0%);
-    /* Triangle cone */
-    transform-origin: center;
-    transform: translate(-50%, -50%) rotate(0deg);
-    /* Rotation handled inline */
+    width: 90px;
+    height: 90px;
+    background: radial-gradient(circle at center, rgba(52, 211, 153, 0.18) 0%, transparent 70%);
+    clip-path: polygon(50% 50%, 20% 0%, 80% 0%);
+    transform: translate(-50%, -100%);
+    transform-origin: 50% 100%;
     pointer-events: none;
     z-index: -1;
 }
 
-/* Glass Body */
+/* Glass Body — rounded square to frame the bus SVG */
 .bus-glass-body {
-    width: 32px;
-    height: 32px;
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 10px;
     box-shadow:
-        0 4px 12px rgba(0, 0, 0, 0.15),
-        0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+        0 4px 14px rgba(0, 0, 0, 0.18),
+        0 0 0 1.5px rgba(255, 255, 255, 0.9) inset;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -69,27 +68,7 @@
     z-index: 2;
 }
 
-/* Status Dot (Inner Core) */
-.bus-status-dot {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    border: 2px solid white;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.bus-status-dot.active {
-    background: var(--color-safe);
-    box-shadow: 0 0 12px rgba(52, 211, 153, 0.6);
-}
-
-.bus-status-dot.idle {
-    background: var(--color-warning);
-}
-
-.bus-status-dot.offline {
-    background: var(--text-tertiary);
-}
+/* Status dot is now replaced by colored SVG stroke — no separate element needed */
 
 /* Radar Pulse (for active buses) */
 .bus-radar-pulse {

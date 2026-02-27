@@ -21,7 +21,7 @@ import { HelmetProvider } from 'react-helmet-async'
 import AnimatedPage from '@/components/AnimatedPage'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { AuthProvider } from '@/contexts/AuthContext'
-import { Landing, Login, Dashboard, Events, Settings } from '@/pages'
+import { Landing, Login, Dashboard, Events, Settings, Insights } from '@/pages'
 import { Background } from '@/components/layout/Background'
 import { Navbar } from '@/components/layout'
 import './index.css'
@@ -83,6 +83,13 @@ function AnimatedRoutes() {
             <ProtectedRoute>
               <AnimatedPage transition="slide">
                 <Events />
+              </AnimatedPage>
+            </ProtectedRoute>
+          } />
+          <Route path="/insights" element={
+            <ProtectedRoute>
+              <AnimatedPage transition="slide">
+                <Insights />
               </AnimatedPage>
             </ProtectedRoute>
           } />

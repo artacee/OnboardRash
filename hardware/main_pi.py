@@ -50,11 +50,14 @@ load_dotenv()
 SERVER_URL = os.getenv('SERVER_URL', 'http://localhost:5000')
 BUS_REGISTRATION = os.getenv('BUS_REGISTRATION', 'KL-01-TEST-001')
 SAMPLE_RATE = float(os.getenv('SAMPLE_RATE', '0.1'))  # 100ms = 10Hz
-ENABLE_CAMERA = os.getenv('ENABLE_CAMERA', 'true').lower() == 'true'
+ENABLE_CAMERA = os.getenv('ENABLE_CAMERA', 'false').lower() == 'true'
 API_KEY = os.getenv('API_KEY', 'default-secure-key-123')
 
 # Phone GPS receiver port
 PHONE_GPS_PORT = int(os.getenv('PHONE_GPS_PORT', '8081'))
+
+# Resolved at startup — bus DB ID (not the same as registration number)
+BUS_ID = None
 
 # Detection thresholds (in g-force)
 THRESHOLD_HARSH_BRAKE = -1.5
@@ -66,6 +69,29 @@ EVENT_COOLDOWN = 5.0
 
 # Initialize Data Manager
 data_manager = DataManager(SERVER_URL, API_KEY)
+
+
+def register_bus_with_backend():
+    """
+    Register this bus with the backend at startup.
+    Returns the backend-assigned integer bus ID.
+    """
+    global BUS_ID
+    headers = {'X-API-Key': API_KEY, 'Content-Type': 'application/json'}
+    payload = {'registration_number': BUS_REGISTRATION}
+    try:
+        # Try to register (may already exist — 409 is fine)
+        resp = requests.post(f"{SERVER_URL}/api/buses", json=payload,
+                             headers=headers, timeout=5)
+        if resp.status_code in (200, 201, 409):
+            data = resp.json()
+            # 201 → data['bus']['id'], 409 → data['bus']['id']
+            BUS_ID = data.get('bus', {}).get('id')
+            print(f"🚌 Bus registered: {BUS_REGISTRATION} → backend ID {BUS_ID}")
+            return BUS_ID
+    except Exception as e:
+        print(f"⚠️ Could not register bus with backend: {e}")
+    return None
 
 
 class RashDrivingDetector:
@@ -209,6 +235,9 @@ def main():
             print(f"⚠️ Camera init failed: {e}")
             camera = None
     
+    # Register bus with backend and get our DB ID
+    register_bus_with_backend()
+
     # Initialize main rash driving detector
     rash_detector = RashDrivingDetector()
     
@@ -219,6 +248,8 @@ def main():
     iteration = 0
     events_detected = 0
     last_print = time.time()
+    last_location_update = 0
+    LOCATION_UPDATE_INTERVAL = 2.0  # Send position to backend every 2 seconds
     
     try:
         while True:
@@ -239,6 +270,26 @@ def main():
                 
             estimated_speed = kf.get_speed()
             
+            # --- LIVE LOCATION UPDATE (for Live Map) ---
+            if (current_time - last_location_update >= LOCATION_UPDATE_INTERVAL
+                    and gps_data.get('latitude') and gps_data.get('longitude')
+                    and BUS_ID is not None):
+                try:
+                    requests.post(
+                        f"{SERVER_URL}/api/buses/{BUS_ID}/location",
+                        json={
+                            'lat': gps_data['latitude'],
+                            'lng': gps_data['longitude'],
+                            'speed': estimated_speed,
+                            'heading': gps_data.get('heading', 0)
+                        },
+                        headers={'X-API-Key': API_KEY},
+                        timeout=3
+                    )
+                except Exception:
+                    pass  # Non-critical; don't block sensor loop
+                last_location_update = current_time
+            
             # --- ANALYZE RASH DRIVING (IMU) ---
             event = rash_detector.analyze(accel)
             
@@ -249,7 +300,7 @@ def main():
             
             # --- ANALYZE TAILGATING (Front Camera) ---
             if not event and tailgating_detector and camera:
-                frame = camera.get_current_frame()
+                frame = camera.capture_frame()
                 if frame is not None:
                     event = tailgating_detector.analyze_frame(frame)
             

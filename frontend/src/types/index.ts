@@ -140,6 +140,25 @@ export interface SystemHealth {
 
 /**
  * ═══════════════════════════════════════════════════
+ * AI INSIGHTS TYPES
+ * ═══════════════════════════════════════════════════
+ */
+
+export interface AIInsightsData {
+  overall_summary: string
+  key_findings: string[]
+  recommendations: string[]
+}
+
+export interface AIInsightsResponse {
+  status: 'success' | 'error'
+  is_mock?: boolean
+  data?: AIInsightsData
+  error?: string
+}
+
+/**
+ * ═══════════════════════════════════════════════════
  * COMPONENT PROP TYPES
  * ═══════════════════════════════════════════════════
  */

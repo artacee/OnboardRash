@@ -122,20 +122,7 @@ class DataManager:
             
             headers = {'X-API-Key': self.api_key}
             
-            # 1. Upload Event Data
-            # Note: The payload might already have base64 snapshot if strictly following old code,
-            # but usually we might want to attach files differently?
-            # The backend expects JSON payload with optional base64. 
-            # If video exists, it's a separate step usually?
-            # Re-using logic from main_pi.py send_event essentially.
-            
-            # If snapshot exists and not in payload base64 yet, load it
-            if snapshot_path and os.path.exists(snapshot_path):
-                 if 'snapshot_base64' not in payload:
-                     with open(snapshot_path, 'rb') as f:
-                         import base64
-                         payload['snapshot_base64'] = base64.b64encode(f.read()).decode('utf-8')
-            
+            # 1. Upload Event Data (no snapshot embedded here)
             response = requests.post(
                 f"{self.server_url}/api/events",
                 json=payload,
@@ -149,8 +136,24 @@ class DataManager:
             event_response = response.json()
             event_id = event_response.get('event_id')
             
-            # 2. Upload Video (if applicable)
-            # The backend API /api/events/<id>/video expects multipart form
+            # 2. Upload Snapshot (separate endpoint expects {'base64': ...})
+            if snapshot_path and os.path.exists(snapshot_path) and event_id:
+                try:
+                    import base64
+                    with open(snapshot_path, 'rb') as f:
+                        b64_data = base64.b64encode(f.read()).decode('utf-8')
+                    snap_resp = requests.post(
+                        f"{self.server_url}/api/events/{event_id}/snapshot",
+                        json={'base64': b64_data},
+                        headers=headers,
+                        timeout=30
+                    )
+                    if snap_resp.status_code == 200:
+                        print("    - Snapshot uploaded")
+                except Exception as e:
+                    print(f"    - Snapshot sync failed: {e}")
+            
+            # 3. Upload Video (multipart form)
             if video_path and os.path.exists(video_path) and event_id:
                 try:
                     with open(video_path, 'rb') as f:
@@ -173,8 +176,6 @@ class DataManager:
             return False
         except Exception as e:
             print(f"  ❌ Upload logic error: {e}")
-            # If logic error (not network), maybe should skip/delete to avoid blocking?
-            # For now, retry.
             return False
 
     def close(self):

@@ -292,6 +292,22 @@ export const simulationApi = {
 
 /**
  * ═══════════════════════════════════════════════════
+ * ANALYTICS API
+ * ═══════════════════════════════════════════════════
+ */
+
+export const analyticsApi = {
+  /**
+   * Get AI-generated fleet insights
+   * GET /api/analytics/insights
+   */
+  async getAIInsights(): Promise<import('@/types').AIInsightsResponse> {
+    return apiFetch('/api/analytics/insights')
+  }
+}
+
+/**
+ * ═══════════════════════════════════════════════════
  * COMBINED API EXPORT
  * ═══════════════════════════════════════════════════
  */
@@ -302,7 +318,8 @@ const api = {
   buses: busesApi,
   export: exportApi,
   auth: authApi,
-  simulation: simulationApi
+  simulation: simulationApi,
+  analytics: analyticsApi
 }
 
 export default api

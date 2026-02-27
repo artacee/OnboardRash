@@ -30,6 +30,7 @@ export default function Navbar({ className, transparent = false }: NavbarProps) 
   const navLinks = [
     { name: 'Dashboard', path: '/dashboard' },
     { name: 'Events', path: '/events' },
+    { name: 'Insights', path: '/insights' },
     { name: 'Settings', path: '/settings' }
   ]
 

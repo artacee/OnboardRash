@@ -1,5 +1,5 @@
 """
-Camera Module Driver — USB Webcam (Primary) with picamera2 fallback.
+Camera Module Driver — USB Webcam.
 
 Optimised for Raspberry Pi 5 + USB webcam (720p @ 30fps).
 Uses a single reader thread to avoid frame access races.
@@ -10,7 +10,7 @@ import time
 import threading
 from datetime import datetime
 
-# OpenCV (primary — USB webcam)
+# OpenCV (USB webcam)
 try:
     import cv2
     CV2_AVAILABLE = True
@@ -18,20 +18,12 @@ except ImportError:
     CV2_AVAILABLE = False
     print("Warning: OpenCV not installed. Run: pip install opencv-python-headless")
 
-# picamera2 (optional fallback for CSI cameras)
-try:
-    from picamera2 import Picamera2
-    PICAMERA_AVAILABLE = True
-except ImportError:
-    PICAMERA_AVAILABLE = False
-
 
 class CameraModule:
     """
-    Camera driver for video evidence capture.
+    Camera driver for video evidence capture via USB webcam.
 
-    Preferred backend: USB webcam via OpenCV (works on Pi 5 and Pi 4).
-    Fallback: picamera2 for CSI Pi Camera modules.
+    Backend: USB webcam via OpenCV (works on Pi 5 and Pi 4).
     """
 
     # Pi 5 with 720p webcam sweet spot — fast enough for CV, light on memory
@@ -58,7 +50,6 @@ class CameraModule:
         self.device_index = device_index
 
         self.camera = None
-        self.camera_type = None  # "usb" | "picamera"
 
         # Rolling 5-second pre-event buffer
         self.buffer: list = []
@@ -76,73 +67,54 @@ class CameraModule:
     # ─── Initialisation ──────────────────────────────────────────────────────
 
     def _init_camera(self):
-        """Try USB webcam first (preferred for Pi 5), then picamera2."""
+        """Initialise USB webcam via OpenCV."""
+        if not CV2_AVAILABLE:
+            print("⚠️  OpenCV not available — evidence capture disabled.")
+            return
 
-        # ── USB Webcam (OpenCV) ──────────────────────────────────────────────
-        if CV2_AVAILABLE:
-            try:
-                cap = cv2.VideoCapture(self.device_index)
+        try:
+            cap = cv2.VideoCapture(self.device_index)
 
-                # Force resolution and FPS
-                cap.set(cv2.CAP_PROP_FRAME_WIDTH,  self.resolution[0])
-                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.resolution[1])
-                cap.set(cv2.CAP_PROP_FPS,          self.fps)
+            # Force resolution and FPS
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH,  self.resolution[0])
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.resolution[1])
+            cap.set(cv2.CAP_PROP_FPS,          self.fps)
 
-                # On Pi 5, V4L2 backend gives best performance
-                cap.set(cv2.CAP_PROP_BACKEND, cv2.CAP_V4L2)
+            # On Pi 5, V4L2 backend gives best performance
+            cap.set(cv2.CAP_PROP_BACKEND, cv2.CAP_V4L2)
 
-                if cap.isOpened():
-                    # Verify we can actually grab a frame
-                    ok, _ = cap.read()
-                    if ok:
-                        self.camera = cap
-                        self.camera_type = "usb"
+            if cap.isOpened():
+                # Verify we can actually grab a frame
+                ok, _ = cap.read()
+                if ok:
+                    self.camera = cap
 
-                        # Read back actual values (webcam may negotiate different)
-                        actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                        actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                        actual_fps = int(cap.get(cv2.CAP_PROP_FPS))
-                        self.resolution = (actual_w, actual_h)
-                        self.fps = actual_fps or self.fps
+                    # Read back actual values (webcam may negotiate different)
+                    actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    actual_fps = int(cap.get(cv2.CAP_PROP_FPS))
+                    self.resolution = (actual_w, actual_h)
+                    self.fps = actual_fps or self.fps
 
-                        print(f"📹 USB Webcam: {actual_w}×{actual_h} @ {actual_fps}fps "
-                              f"(/dev/video{self.device_index})")
-                        return
-                    else:
-                        cap.release()
-            except Exception as e:
-                print(f"USB camera init failed: {e}")
+                    print(f"📹 USB Webcam: {actual_w}×{actual_h} @ {actual_fps}fps "
+                          f"(/dev/video{self.device_index})")
+                    return
+                else:
+                    cap.release()
+        except Exception as e:
+            print(f"USB camera init failed: {e}")
 
-        # ── picamera2 fallback (CSI cameras) ──────────────────────────────
-        if PICAMERA_AVAILABLE:
-            try:
-                cam = Picamera2()
-                cfg = cam.create_video_configuration(
-                    main={"size": self.resolution, "format": "BGR888"},
-                )
-                cam.configure(cfg)
-                cam.start()
-                self.camera = cam
-                self.camera_type = "picamera"
-                print(f"📹 Pi CSI Camera: {self.resolution} @ {self.fps}fps")
-                return
-            except Exception as e:
-                print(f"picamera2 init failed: {e}")
-
-        print("⚠️  No camera available — evidence capture disabled.")
+        print("⚠️  No USB webcam detected — evidence capture disabled.")
 
     # ─── Frame Capture ───────────────────────────────────────────────────────
 
     def _read_frame(self):
-        """Read one frame from whichever backend is active."""
+        """Read one frame from the USB webcam."""
         if not self.camera:
             return None
         try:
-            if self.camera_type == "usb":
-                ok, frame = self.camera.read()
-                return frame if ok else None
-            else:  # picamera
-                return self.camera.capture_array()
+            ok, frame = self.camera.read()
+            return frame if ok else None
         except Exception:
             return None
 
@@ -263,10 +235,7 @@ class CameraModule:
         self._reader_running = False
         time.sleep(0.2)  # Let loop exit
         if self.camera:
-            if self.camera_type == "usb":
-                self.camera.release()
-            else:
-                self.camera.close()
+            self.camera.release()
         print("📹 Camera closed")
 
 
@@ -284,7 +253,7 @@ if __name__ == "__main__":
 
     cam = CameraModule()
     if not cam.camera:
-        print("No camera detected. Check USB connection.")
+        print("No USB webcam detected. Check USB connection.")
         sys.exit(1)
 
     cam.start_buffer_recording()
