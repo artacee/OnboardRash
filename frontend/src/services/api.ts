@@ -183,6 +183,22 @@ export const busesApi = {
   },
 
   /**
+   * Register a new bus
+   * POST /api/buses
+   */
+  async registerBus(payload: {
+    registration_number: string
+    driver_name?: string
+    route?: string
+  }): Promise<Bus> {
+    const data = await apiFetch<any>('/api/buses', { // eslint-disable-line @typescript-eslint/no-explicit-any
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
+    return data.bus
+  },
+
+  /**
    * Get all bus locations
    * GET /api/buses/locations
    */
@@ -292,6 +308,34 @@ export const simulationApi = {
 
 /**
  * ═══════════════════════════════════════════════════
+ * DRIVERS API
+ * ═══════════════════════════════════════════════════
+ */
+
+export interface DriverRecord {
+  id: number
+  username: string
+  full_name: string
+  phone_number: string | null
+  license_number: string | null
+  created_at: string
+  trip_count: number
+  is_active: boolean
+}
+
+export const driversApi = {
+  /**
+   * Get all registered drivers
+   * GET /api/drivers
+   */
+  async getDrivers(): Promise<DriverRecord[]> {
+    const data = await apiFetch<any>('/api/drivers') // eslint-disable-line @typescript-eslint/no-explicit-any
+    return data.drivers || []
+  }
+}
+
+/**
+ * ═══════════════════════════════════════════════════
  * ANALYTICS API
  * ═══════════════════════════════════════════════════
  */
@@ -316,6 +360,7 @@ const api = {
   stats: statsApi,
   events: eventsApi,
   buses: busesApi,
+  drivers: driversApi,
   export: exportApi,
   auth: authApi,
   simulation: simulationApi,

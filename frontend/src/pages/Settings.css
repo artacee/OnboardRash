@@ -370,6 +370,92 @@
     padding: var(--space-6) 0;
 }
 
+.modal-button-primary {
+    background: linear-gradient(135deg, #60a5fa, #3b82f6);
+    color: white;
+    box-shadow: 0 4px 12px rgba(96, 165, 250, 0.35);
+}
+
+.modal-button-primary:hover:not(:disabled) {
+    box-shadow: 0 6px 20px rgba(96, 165, 250, 0.45);
+    transform: translateY(-1px);
+}
+
+.modal-button-primary:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+/* ─── ADD BUS BUTTON ─── */
+.add-bus-btn {
+    padding: var(--space-2) var(--space-4);
+    background: rgba(96, 165, 250, 0.1);
+    backdrop-filter: blur(12px);
+    border: 1.5px solid rgba(96, 165, 250, 0.3);
+    border-radius: var(--radius-md);
+    font-size: var(--text-footnote);
+    font-weight: var(--weight-headline);
+    color: var(--color-info);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.add-bus-btn:hover {
+    background: rgba(96, 165, 250, 0.18);
+    border-color: rgba(96, 165, 250, 0.5);
+}
+
+/* ─── BUS REGISTER FORM ─── */
+.bus-form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    margin-bottom: var(--space-2);
+}
+
+.bus-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    text-align: left;
+}
+
+.bus-form-label {
+    font-size: var(--text-footnote);
+    font-weight: var(--weight-headline);
+    color: var(--text-secondary);
+}
+
+.bus-form-input {
+    padding: var(--space-3) var(--space-4);
+    background: rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: var(--radius-md);
+    font-size: var(--text-callout);
+    font-weight: var(--weight-body);
+    color: var(--text-primary);
+    font-family: inherit;
+    transition: all 0.2s ease;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.bus-form-input::placeholder {
+    color: var(--text-quaternary);
+}
+
+.bus-form-input:focus {
+    border-color: rgba(96, 165, 250, 0.5);
+    background: rgba(255, 255, 255, 0.45);
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.12);
+}
+
 /* ─── RESPONSIVE ─── */
 @media (max-width: 768px) {
     .management-card {

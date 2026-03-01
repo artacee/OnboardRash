@@ -11,7 +11,6 @@ import {
     ScrollView,
     Alert,
     RefreshControl,
-    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -29,6 +28,11 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassButton } from '@/components/ui/GlassButton';
 import { GlassInput } from '@/components/ui/GlassInput';
 import { AnimatedEntry } from '@/components/ui/AnimatedEntry';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { ProfileSkeleton } from '@/components/ui/ShimmerPlaceholder';
+import { Background } from '@/components/ui/Background';
+import { GradientTitle, GRADIENT_PRESETS } from '@/components/ui/GradientTitle';
+import { SectionLabel, SECTION_DOT_COLORS } from '@/components/ui/SectionLabel';
 import { theme } from '@/constants/theme';
 import * as api from '@/services/api';
 import { setPiUrl, getPiUrl, persistPiUrl } from '@/services/gpsStreamer';
@@ -40,7 +44,7 @@ function AvatarRing({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         rotation.value = withRepeat(
-            withTiming(360, { duration: 4000, easing: Easing.linear }),
+            withTiming(360, { duration: 6000, easing: Easing.linear }),
             -1,
             false
         );
@@ -54,7 +58,7 @@ function AvatarRing({ children }: { children: React.ReactNode }) {
         <View style={avatarStyles.container}>
             <Animated.View style={[avatarStyles.gradientRing, ringStyle]}>
                 <LinearGradient
-                    colors={['#7850dc', '#ff78aa', '#3cbeff', '#ffc850', '#7850dc']}
+                    colors={['#e2c8ff', '#9452e8', '#c43070', '#7028b8', '#e2c8ff']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={StyleSheet.absoluteFill}
@@ -67,26 +71,26 @@ function AvatarRing({ children }: { children: React.ReactNode }) {
 
 const avatarStyles = StyleSheet.create({
     container: {
-        width: 84,
-        height: 84,
+        width: 90,
+        height: 90,
         alignItems: 'center',
         justifyContent: 'center',
     },
     gradientRing: {
         position: 'absolute',
-        width: 84,
-        height: 84,
-        borderRadius: 42,
+        width: 90,
+        height: 90,
+        borderRadius: 45,
         overflow: 'hidden',
     },
     inner: {
-        width: 72,
-        height: 72,
-        borderRadius: 36,
+        width: 74,
+        height: 74,
+        borderRadius: 37,
         backgroundColor: theme.colors.bgBase,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 3,
+        borderWidth: 2,
         borderColor: theme.colors.bgBase,
     },
 });
@@ -153,9 +157,9 @@ export default function ProfileScreen() {
     if (initialLoading) {
         return (
             <SafeAreaView style={styles.container}>
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={theme.colors.textTertiary} />
-                    <Text style={styles.loadingText}>Loading profile...</Text>
+                <Background variant="portrait" />
+                <View style={styles.scrollContent}>
+                    <ProfileSkeleton />
                 </View>
             </SafeAreaView>
         );
@@ -165,6 +169,7 @@ export default function ProfileScreen() {
     if (fetchError && !profile) {
         return (
             <SafeAreaView style={styles.container}>
+                <Background variant="portrait" />
                 <View style={styles.errorContainer}>
                     <GlassCard tier={1} style={styles.errorCard}>
                         <Ionicons name="cloud-offline-outline" size={48} color={theme.colors.danger} />
@@ -184,6 +189,7 @@ export default function ProfileScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
+            <Background variant="portrait" />
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
@@ -194,12 +200,12 @@ export default function ProfileScreen() {
                 {/* Header */}
                 <AnimatedEntry delay={0}>
                     <View style={styles.header}>
-                        <Text style={styles.title}>Profile</Text>
+                        <GradientTitle text="Profile" colors={GRADIENT_PRESETS.profile} fontSize={theme.fontSize.title1} />
                     </View>
                 </AnimatedEntry>
 
                 {/* Driver Info Card */}
-                <AnimatedEntry delay={100}>
+                <AnimatedEntry delay={100} type="scale">
                     <GlassCard tier={0} style={styles.profileCard}>
                         <AvatarRing>
                             <Ionicons name="person" size={32} color={theme.colors.textTertiary} />
@@ -214,49 +220,78 @@ export default function ProfileScreen() {
 
                         <View style={styles.detailsGrid}>
                             {driver?.phone_number && (
-                                <View style={styles.detailRow}>
-                                    <Ionicons name="call-outline" size={16} color={theme.colors.textTertiary} />
-                                    <Text style={styles.detailText}>{driver.phone_number}</Text>
-                                </View>
+                                <PressableScale scaleTo={0.98}>
+                                    <View style={styles.detailRow}>
+                                        <Ionicons name="call-outline" size={16} color={theme.colors.textTertiary} />
+                                        <Text style={styles.detailText}>{driver.phone_number}</Text>
+                                    </View>
+                                </PressableScale>
                             )}
                             {driver?.license_number && (
-                                <View style={styles.detailRow}>
-                                    <Ionicons name="card-outline" size={16} color={theme.colors.textTertiary} />
-                                    <Text style={styles.detailText}>{driver.license_number}</Text>
-                                </View>
+                                <PressableScale scaleTo={0.98}>
+                                    <View style={styles.detailRow}>
+                                        <Ionicons name="card-outline" size={16} color={theme.colors.textTertiary} />
+                                        <Text style={styles.detailText}>{driver.license_number}</Text>
+                                    </View>
+                                </PressableScale>
                             )}
                         </View>
                     </GlassCard>
                 </AnimatedEntry>
 
-                {/* Stats Card */}
-                <AnimatedEntry delay={200}>
+                {/* Stats Card — 2×2 grid */}
+                <AnimatedEntry delay={200} type="fade-up">
                     <GlassCard tier={1} style={styles.statsCard}>
-                        <Text style={styles.sectionTitle}>Driving Stats</Text>
+                        <SectionLabel text="Driving Stats" dotColor={SECTION_DOT_COLORS.profile} />
                         <View style={styles.statsGrid}>
-                            <View style={styles.statBox}>
-                                <Text style={styles.statValue}>{stats?.total_trips || 0}</Text>
-                                <Text style={styles.statLabel}>Trips</Text>
+                            {/* Row 1 */}
+                            <View style={styles.statsRow}>
+                                <View style={styles.statBox}>
+                                    <Text style={styles.statValue}>{stats?.total_trips || 0}</Text>
+                                    <Text style={styles.statLabel}>Trips</Text>
+                                </View>
+                                <View style={styles.statDivider} />
+                                <View style={styles.statBox}>
+                                    <Text style={[styles.statValue, {
+                                        color: (stats?.avg_score || 100) >= 80 ? theme.colors.safe :
+                                            (stats?.avg_score || 100) >= 50 ? theme.colors.warning :
+                                                theme.colors.danger
+                                    }]}>
+                                        {Math.round(stats?.avg_score || 100)}
+                                    </Text>
+                                    <Text style={styles.statLabel}>Avg Score</Text>
+                                </View>
                             </View>
-                            <View style={styles.statDivider} />
-                            <View style={styles.statBox}>
-                                <Text style={[styles.statValue, {
-                                    color: (stats?.avg_score || 100) >= 80 ? theme.colors.safe :
-                                        (stats?.avg_score || 100) >= 50 ? theme.colors.warning :
-                                            theme.colors.danger
-                                }]}>
-                                    {Math.round(stats?.avg_score || 100)}
-                                </Text>
-                                <Text style={styles.statLabel}>Avg Score</Text>
+
+                            {/* Horizontal divider */}
+                            <View style={styles.statDividerHorizontal} />
+
+                            {/* Row 2 */}
+                            <View style={styles.statsRow}>
+                                <View style={styles.statBox}>
+                                    <Text style={styles.statValue}>{stats?.total_events || 0}</Text>
+                                    <Text style={styles.statLabel}>Events</Text>
+                                </View>
+                                <View style={styles.statDivider} />
+                                <View style={styles.statBox}>
+                                    <Text style={[styles.statValue, {
+                                        color: (stats?.best_score || 100) >= 80 ? theme.colors.safe :
+                                            (stats?.best_score || 100) >= 50 ? theme.colors.warning :
+                                                theme.colors.danger
+                                    }]}>
+                                        {Math.round(stats?.best_score || 100)}
+                                    </Text>
+                                    <Text style={styles.statLabel}>Best Score</Text>
+                                </View>
                             </View>
                         </View>
                     </GlassCard>
                 </AnimatedEntry>
 
                 {/* Connection Settings */}
-                <AnimatedEntry delay={300}>
+                <AnimatedEntry delay={300} type="fade-up">
                     <GlassCard tier={1} style={styles.settingsCard}>
-                        <Text style={styles.sectionTitle}>Connection Settings</Text>
+                        <SectionLabel text="Connection Settings" dotColor={SECTION_DOT_COLORS.profile} />
                         <GlassInput
                             label="Pi Address"
                             placeholder="http://192.168.43.1:8081"
@@ -282,13 +317,13 @@ export default function ProfileScreen() {
                 </AnimatedEntry>
 
                 {/* Logout */}
-                <AnimatedEntry delay={400}>
+                <AnimatedEntry delay={400} type="fade-up">
                     <View style={styles.logoutSection}>
                         <GlassButton
                             title="Logout"
                             variant="danger"
                             onPress={handleLogout}
-                            icon={<Ionicons name="log-out-outline" size={18} color="#b91c1c" />}
+                            icon={<Ionicons name="log-out-outline" size={18} color={theme.colors.dangerText} />}
                         />
                     </View>
                 </AnimatedEntry>
@@ -305,17 +340,6 @@ const styles = StyleSheet.create({
     scrollContent: {
         paddingHorizontal: theme.spacing.xl,
         paddingTop: theme.spacing.base,
-    },
-    loadingContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: theme.spacing.base,
-    },
-    loadingText: {
-        fontFamily: theme.fonts.body,
-        fontSize: theme.fontSize.body,
-        color: theme.colors.textTertiary,
     },
     errorContainer: {
         flex: 1,
@@ -393,6 +417,9 @@ const styles = StyleSheet.create({
         marginBottom: theme.spacing.base,
     },
     statsGrid: {
+        gap: 0,
+    },
+    statsRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
@@ -400,12 +427,17 @@ const styles = StyleSheet.create({
     statBox: {
         flex: 1,
         alignItems: 'center',
-        paddingVertical: theme.spacing.sm,
+        paddingVertical: theme.spacing.md,
     },
     statDivider: {
         width: 1,
         height: 40,
-        backgroundColor: 'rgba(0, 0, 0, 0.08)',
+        backgroundColor: theme.colors.divider,
+    },
+    statDividerHorizontal: {
+        height: 1,
+        backgroundColor: theme.colors.divider,
+        marginHorizontal: theme.spacing.base,
     },
     statValue: {
         fontFamily: theme.fonts.display,

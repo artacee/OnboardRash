@@ -8,8 +8,17 @@
  */
 
 import * as Location from 'expo-location';
-import * as TaskManager from 'expo-task-manager';
 import * as SecureStore from 'expo-secure-store';
+
+// TaskManager / background location is only available in a development build,
+// not in Expo Go (removed from Expo Go in SDK 52).
+// We import lazily and guard every call so the app doesn't crash in Expo Go.
+let TaskManager: typeof import('expo-task-manager') | null = null;
+try {
+    TaskManager = require('expo-task-manager');
+} catch {
+    // Running inside Expo Go — background tasks unavailable
+}
 
 const GPS_TASK_NAME = 'ONBOARDRASH_GPS_STREAM';
 
@@ -47,8 +56,9 @@ export function setStreamErrorCallback(cb: ((failures: number) => void) | null) 
 }
 
 // ─── Background Task Definition ────────────────────────
+// Only register the background task when TaskManager is available (dev build).
 
-TaskManager.defineTask(GPS_TASK_NAME, async ({ data, error }: any) => {
+if (TaskManager) TaskManager.defineTask(GPS_TASK_NAME, async ({ data, error }: any) => {
     if (error) {
         console.error('[GPS Stream] Error:', error);
         return;
@@ -102,6 +112,12 @@ export async function requestPermissions(): Promise<boolean> {
 }
 
 export async function startGPSStream(): Promise<boolean> {
+    if (!TaskManager) {
+        // Expo Go — background GPS not available, return true to not block trip start
+        console.warn('[GPS] Background tasks unavailable in Expo Go. Use a dev build for GPS streaming.');
+        return true;
+    }
+
     const hasPermission = await requestPermissions();
     if (!hasPermission) return false;
 
@@ -128,6 +144,7 @@ export async function startGPSStream(): Promise<boolean> {
 }
 
 export async function stopGPSStream(): Promise<void> {
+    if (!TaskManager) return;
     const isRunning = await Location.hasStartedLocationUpdatesAsync(GPS_TASK_NAME);
     if (isRunning) {
         await Location.stopLocationUpdatesAsync(GPS_TASK_NAME);
@@ -136,6 +153,7 @@ export async function stopGPSStream(): Promise<void> {
 }
 
 export async function isStreaming(): Promise<boolean> {
+    if (!TaskManager) return false;
     return Location.hasStartedLocationUpdatesAsync(GPS_TASK_NAME);
 }
 

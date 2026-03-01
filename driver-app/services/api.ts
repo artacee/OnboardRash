@@ -22,7 +22,7 @@ import type {
 
 // ─── Configuration ─────────────────────────────────────
 
-const DEFAULT_API_URL = 'http://192.168.1.40:5000';
+const DEFAULT_API_URL = 'http://192.168.1.35:5000';
 const REQUEST_TIMEOUT_MS = 15_000;
 
 let apiUrl = DEFAULT_API_URL;

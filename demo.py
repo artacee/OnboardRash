@@ -77,7 +77,27 @@ def wait_for_server(url, timeout=15):
 
 # ─── Main ────────────────────────────────────────────────────
 
+def kill_old_processes():
+    """Kill existing python, node, npm processes to free up ports, except this script."""
+    print("  Ensuring ports are free by stopping old processes...")
+    try:
+        current_pid = os.getpid()
+        if sys.platform == 'win32':
+            # Stop node, npm, npx, and other python processes except this one
+            cmd = f'Get-Process python, node, npm, npx -ErrorAction SilentlyContinue | Where-Object {{ $_.Id -ne {current_pid} }} | Stop-Process -Force -ErrorAction SilentlyContinue'
+            subprocess.run(["powershell", "-Command", cmd], capture_output=True)
+        else:
+            # Unix equivalent
+            cmd = f"ps -eo pid,comm | grep -E 'python|node|npm|npx' | grep -v grep | awk '{{if ($1 != {current_pid}) print $1}}' | xargs -r kill -9"
+            subprocess.run(cmd, shell=True, capture_output=True)
+        time.sleep(1) # Give OS a moment to release the ports
+    except Exception:
+        pass
+
+
 def main():
+    kill_old_processes()
+
     python = find_python()
     npm    = find_npm()
 

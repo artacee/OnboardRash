@@ -1,12 +1,17 @@
 /**
- * TripButton — Pulsing morphing trip control button.
- * 
- * Start state: Green breathing glow with play icon
- * Active state: Red pulse with radiating ring + stop icon
+ * TripButton — Premium trip control with physical feel.
+ *
+ * Features:
+ * - Breathing scale (idle) / radiating pulse (active)
+ * - Animated icon transition with scale through zero
+ * - Shaped ambient glow matching pill form
+ * - Wider pulse ring spread (1→2.2)
+ * - Deep spring press (0.91)
+ * - Full glass border
  */
 
 import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -33,12 +38,18 @@ export function TripButton({ isActive, onPress, loading = false }: TripButtonPro
     const pulseScale = useSharedValue(1);
     const pulseOpacity = useSharedValue(0);
     const colorProgress = useSharedValue(isActive ? 1 : 0);
+    const pressScale = useSharedValue(1);
+    const iconScale = useSharedValue(1);
+    const glowBreath = useSharedValue(1);
 
     useEffect(() => {
-        colorProgress.value = withSpring(isActive ? 1 : 0, {
-            damping: 15,
-            stiffness: 100,
-        });
+        colorProgress.value = withSpring(isActive ? 1 : 0, theme.spring.gentle);
+
+        // Icon transition: scale to 0, then back to 1
+        iconScale.value = withSequence(
+            withTiming(0, { duration: 120 }),
+            withSpring(1, { damping: 12, stiffness: 200 }),
+        );
 
         if (!isActive) {
             // Gentle breathing for start button
@@ -52,13 +63,23 @@ export function TripButton({ isActive, onPress, loading = false }: TripButtonPro
             );
             pulseScale.value = 1;
             pulseOpacity.value = 0;
+
+            // Glow breathes with button
+            glowBreath.value = withRepeat(
+                withSequence(
+                    withTiming(1.06, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
+                    withTiming(0.94, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
+                ),
+                -1,
+                true,
+            );
         } else {
             // Pulse ring for stop button
             breathScale.value = withTiming(1, { duration: 300 });
             pulseScale.value = withRepeat(
                 withSequence(
                     withTiming(1, { duration: 0 }),
-                    withTiming(1.8, { duration: 1600, easing: Easing.out(Easing.cubic) })
+                    withTiming(2.2, { duration: 1600, easing: Easing.out(Easing.cubic) })
                 ),
                 -1,
                 false
@@ -71,25 +92,40 @@ export function TripButton({ isActive, onPress, loading = false }: TripButtonPro
                 -1,
                 false
             );
+            glowBreath.value = withRepeat(
+                withSequence(
+                    withTiming(1.08, { duration: 1200, easing: Easing.inOut(Easing.sin) }),
+                    withTiming(0.92, { duration: 1200, easing: Easing.inOut(Easing.sin) }),
+                ),
+                -1,
+                true,
+            );
         }
     }, [isActive]);
 
     const buttonStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: breathScale.value }],
+        transform: [{ scale: breathScale.value * pressScale.value }],
     }));
 
     const glowStyle = useAnimatedStyle(() => {
         const bg = interpolateColor(
             colorProgress.value,
             [0, 1],
-            ['rgba(52, 211, 153, 0.15)', 'rgba(248, 113, 113, 0.15)']
+            [theme.colors.safeBg, theme.colors.dangerBg]
         );
-        return { backgroundColor: bg };
+        return {
+            backgroundColor: bg,
+            transform: [{ scale: glowBreath.value }],
+        };
     });
 
     const pulseRingStyle = useAnimatedStyle(() => ({
         transform: [{ scale: pulseScale.value }],
         opacity: pulseOpacity.value,
+    }));
+
+    const iconAnimStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: iconScale.value }],
     }));
 
     const handlePress = () => {
@@ -99,14 +135,14 @@ export function TripButton({ isActive, onPress, loading = false }: TripButtonPro
         onPress();
     };
 
-    const buttonBg = isActive ? 'rgba(248, 113, 113, 0.25)' : 'rgba(52, 211, 153, 0.25)';
-    const textColor = isActive ? '#b91c1c' : '#047857';
+    const buttonBg = isActive ? theme.colors.dangerBtnBg : theme.colors.primaryBg;
+    const textColor = isActive ? theme.colors.dangerText : theme.colors.safeText;
     const iconName = isActive ? 'stop' : 'play';
     const label = isActive ? 'End Trip' : 'Start Trip';
 
     return (
         <View style={styles.wrapper}>
-            {/* Ambient glow behind button */}
+            {/* Ambient glow — shaped to match pill, breathes */}
             <Animated.View style={[styles.ambientGlow, glowStyle]} />
 
             {/* Pulse ring (active state only) */}
@@ -122,26 +158,27 @@ export function TripButton({ isActive, onPress, loading = false }: TripButtonPro
 
             {/* Main button */}
             <Animated.View style={buttonStyle}>
-                <TouchableOpacity
+                <Pressable
                     onPress={handlePress}
+                    onPressIn={() => { pressScale.value = withSpring(0.91, theme.spring.press); }}
+                    onPressOut={() => { pressScale.value = withSpring(1, theme.spring.press); }}
                     disabled={loading}
-                    activeOpacity={0.7}
                     style={[styles.button, { backgroundColor: buttonBg }]}
                 >
                     <BlurView
-                        intensity={20}
+                        intensity={Platform.OS === 'android' ? 15 : 25}
                         tint="light"
                         style={[StyleSheet.absoluteFill, { borderRadius: theme.radius.full, overflow: 'hidden' }]}
                     />
                     {loading ? (
                         <ActivityIndicator size="small" color={textColor} />
                     ) : (
-                        <>
+                        <Animated.View style={[styles.buttonContent, iconAnimStyle]}>
                             <Ionicons name={iconName} size={22} color={textColor} />
                             <Text style={[styles.buttonText, { color: textColor }]}>{label}</Text>
-                        </>
+                        </Animated.View>
                     )}
-                </TouchableOpacity>
+                </Pressable>
             </Animated.View>
         </View>
     );
@@ -151,33 +188,40 @@ const styles = StyleSheet.create({
     wrapper: {
         alignItems: 'center',
         justifyContent: 'center',
-        height: 80,
+        height: 90,
     },
     ambientGlow: {
         position: 'absolute',
         width: 240,
         height: 60,
-        borderRadius: 30,
+        borderRadius: theme.radius.full,
     },
     pulseRing: {
         position: 'absolute',
         width: 220,
         height: 56,
-        borderRadius: 28,
-        borderWidth: 1.5,
+        borderRadius: theme.radius.full,
+        borderWidth: 2,
     },
     button: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: theme.spacing.sm,
-        paddingVertical: 16,
-        paddingHorizontal: 48,
+        paddingVertical: theme.spacing.base,
+        paddingHorizontal: theme.spacing['3xl'],
         borderRadius: theme.radius.full,
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(255, 255, 255, 0.4)',
+        borderWidth: 1,
+        borderTopColor: theme.colors.glassBorderLight,
+        borderLeftColor: theme.colors.glassBorder,
+        borderRightColor: theme.colors.glassBorder,
+        borderBottomColor: theme.colors.glassBorderDark,
         overflow: 'hidden',
         minWidth: 200,
+    },
+    buttonContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.sm,
     },
     buttonText: {
         fontFamily: theme.fonts.title,

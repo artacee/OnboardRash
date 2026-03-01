@@ -11,7 +11,6 @@ import {
     Text,
     StyleSheet,
     ScrollView,
-    ActivityIndicator,
     TouchableOpacity,
     RefreshControl,
     Modal,
@@ -25,6 +24,10 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassButton } from '@/components/ui/GlassButton';
 import { ScoreArc } from '@/components/ui/ScoreArc';
 import { AnimatedEntry } from '@/components/ui/AnimatedEntry';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { PulseDot } from '@/components/ui/PulseDot';
+import { Background } from '@/components/ui/Background';
+import { SectionLabel, SECTION_DOT_COLORS } from '@/components/ui/SectionLabel';
 import { theme, severityColors, eventTypeLabels } from '@/constants/theme';
 import * as api from '@/services/api';
 import type { Trip, DrivingEvent } from '@/types';
@@ -107,9 +110,12 @@ export default function TripDetailScreen() {
     if (loading) {
         return (
             <SafeAreaView style={styles.container}>
+                <Background variant="ember" />
                 <View style={styles.centered}>
-                    <ActivityIndicator size="large" color={theme.colors.textTertiary} />
-                    <Text style={styles.loadingText}>Loading trip...</Text>
+                    <GlassCard tier={1} style={{ alignItems: 'center', paddingVertical: 48 }}>
+                        <ScoreArc score={0} size={120} strokeWidth={8} />
+                        <Text style={styles.loadingText}>Loading trip...</Text>
+                    </GlassCard>
                 </View>
             </SafeAreaView>
         );
@@ -119,6 +125,7 @@ export default function TripDetailScreen() {
     if (error || !trip) {
         return (
             <SafeAreaView style={styles.container}>
+                <Background variant="ember" />
                 <View style={styles.centered}>
                     <GlassCard tier={1} style={styles.errorCard}>
                         <Ionicons name="alert-circle-outline" size={48} color={theme.colors.danger} />
@@ -142,24 +149,26 @@ export default function TripDetailScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
+            <Background variant="ember" />
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             >
                 {/* Back button */}
-                <TouchableOpacity
+                <PressableScale
                     style={styles.backButton}
-                    onPress={() => { Haptics.selectionAsync(); router.back(); }}
-                    activeOpacity={0.7}
+                    onPress={() => router.back()}
+                    haptic hapticStyle="light"
+                    scaleTo={0.93}
                 >
                     <Ionicons name="chevron-back" size={22} color={theme.colors.textSecondary} />
                     <Text style={styles.backLabel}>History</Text>
-                </TouchableOpacity>
+                </PressableScale>
 
                 {/* ═══ Trip Summary Card ═══ */}
-                <AnimatedEntry delay={0}>
-                    <GlassCard tier={0} style={styles.summaryCard}>
+                <AnimatedEntry delay={0} type="scale">
+                    <GlassCard tier={0} style={styles.summaryCard} contentStyle={styles.summaryCardContent}>
                         <ScoreArc score={trip.score} size={140} strokeWidth={8} />
 
                         <Text style={[styles.scoreLabel, { color: scoreColor }]}>
@@ -193,26 +202,26 @@ export default function TripDetailScreen() {
                     </GlassCard>
                 </AnimatedEntry>
 
-                {/* ═══ Stats Row ═══ */}
-                <AnimatedEntry delay={100}>
-                    <View style={styles.statsRow}>
-                        <GlassCard tier={1} style={styles.statBox}>
+                {/* ═══ Stats Grid (2×2) ═══ */}
+                <AnimatedEntry delay={100} type="fade-up">
+                    <View style={styles.statsGrid}>
+                        <GlassCard tier={1} style={styles.statBox} contentStyle={styles.statBoxContent}>
                             <Text style={styles.statValue}>{events.length}</Text>
                             <Text style={styles.statLabel}>Events</Text>
                         </GlassCard>
-                        <GlassCard tier={1} style={styles.statBox}>
+                        <GlassCard tier={1} style={styles.statBox} contentStyle={styles.statBoxContent}>
                             <Text style={[styles.statValue, { color: theme.colors.danger }]}>
                                 {severityCounts['HIGH'] || 0}
                             </Text>
                             <Text style={styles.statLabel}>High</Text>
                         </GlassCard>
-                        <GlassCard tier={1} style={styles.statBox}>
+                        <GlassCard tier={1} style={styles.statBox} contentStyle={styles.statBoxContent}>
                             <Text style={[styles.statValue, { color: theme.colors.warning }]}>
                                 {severityCounts['MEDIUM'] || 0}
                             </Text>
                             <Text style={styles.statLabel}>Medium</Text>
                         </GlassCard>
-                        <GlassCard tier={1} style={styles.statBox}>
+                        <GlassCard tier={1} style={styles.statBox} contentStyle={styles.statBoxContent}>
                             <Text style={[styles.statValue, { color: theme.colors.safe }]}>
                                 {severityCounts['LOW'] || 0}
                             </Text>
@@ -222,9 +231,9 @@ export default function TripDetailScreen() {
                 </AnimatedEntry>
 
                 {/* ═══ Event Timeline ═══ */}
-                <AnimatedEntry delay={200}>
+                <AnimatedEntry delay={200} type="fade-up">
                     <GlassCard tier={1} style={styles.timelineCard}>
-                        <Text style={styles.sectionTitle}>Event Timeline</Text>
+                        <SectionLabel text="Event Timeline" dotColor={SECTION_DOT_COLORS.ember} />
 
                         {events.length === 0 ? (
                             <View style={styles.emptyTimeline}>
@@ -238,15 +247,19 @@ export default function TripDetailScreen() {
                                 const isLast = index === events.length - 1;
 
                                 return (
-                                    <AnimatedEntry key={event.id ?? index} delay={250 + index * 60}>
-                                        <TouchableOpacity
-                                            activeOpacity={0.7}
+                                    <AnimatedEntry key={event.id ?? index} delay={250 + index * 60} type="slide-left">
+                                        <PressableScale
+                                            scaleTo={0.97}
                                             onPress={() => { Haptics.selectionAsync(); setSelectedEvent(event); }}
                                         >
                                             <View style={styles.timelineRow}>
                                                 {/* Timeline connector */}
                                                 <View style={styles.timelineConnector}>
-                                                    <View style={[styles.timelineDot, { backgroundColor: sev.color }]} />
+                                                    {isHigh ? (
+                                                        <PulseDot active={true} color={sev.color} size={10} />
+                                                    ) : (
+                                                        <View style={[styles.timelineDot, { backgroundColor: sev.color }]} />
+                                                    )}
                                                     {!isLast && <View style={styles.timelineLine} />}
                                                 </View>
 
@@ -257,7 +270,7 @@ export default function TripDetailScreen() {
                                                         isHigh && {
                                                             borderLeftWidth: 3,
                                                             borderLeftColor: theme.colors.danger,
-                                                            backgroundColor: 'rgba(248, 113, 113, 0.06)',
+                                                            backgroundColor: theme.colors.dangerBg,
                                                             borderRadius: theme.radius.sm,
                                                             paddingLeft: theme.spacing.md,
                                                         },
@@ -291,7 +304,7 @@ export default function TripDetailScreen() {
                                                     )}
                                                 </View>
                                             </View>
-                                        </TouchableOpacity>
+                                        </PressableScale>
                                     </AnimatedEntry>
                                 );
                             })
@@ -453,9 +466,13 @@ const styles = StyleSheet.create({
 
     // Summary card
     summaryCard: {
-        alignItems: 'center',
         paddingVertical: theme.spacing['2xl'],
         marginBottom: theme.spacing.xl,
+        // More opaque than default tier-0 glass — improves readability over vivid background
+        backgroundColor: 'rgba(228,220,255,0.82)',
+    },
+    summaryCardContent: {
+        alignItems: 'center',
     },
     scoreLabel: {
         fontFamily: theme.fonts.display,
@@ -515,16 +532,20 @@ const styles = StyleSheet.create({
         color: theme.colors.safe,
     },
 
-    // Stats row
-    statsRow: {
+    // Stats 2×2 grid
+    statsGrid: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         gap: theme.spacing.md,
         marginBottom: theme.spacing.xl,
     },
     statBox: {
-        flex: 1,
+        // Two per row with gap accounted for
+        width: '47.5%',
+        paddingVertical: theme.spacing.lg,
+    },
+    statBoxContent: {
         alignItems: 'center',
-        paddingVertical: theme.spacing.base,
     },
     statValue: {
         fontFamily: theme.fonts.display,
@@ -580,7 +601,7 @@ const styles = StyleSheet.create({
     timelineLine: {
         width: 2,
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.08)',
+        backgroundColor: theme.colors.divider,
         marginVertical: 4,
     },
     timelineContent: {
@@ -639,7 +660,7 @@ const styles = StyleSheet.create({
     // Event detail modal
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.35)',
+        backgroundColor: theme.colors.modalOverlay,
         justifyContent: 'flex-end',
     },
     modalContent: {

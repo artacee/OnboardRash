@@ -350,3 +350,19 @@ def list_buses():
     return jsonify({
         'buses': [b.to_dict() for b in buses],
     })
+
+
+# ==================== ADMIN: LIST ALL DRIVERS (for dashboard) ====================
+
+@drivers_bp.route('', methods=['GET'])
+def list_drivers():
+    """List all registered drivers — for the fleet management dashboard."""
+    drivers = Driver.query.order_by(Driver.created_at.desc()).all()
+    result = []
+    for d in drivers:
+        data = d.to_dict()
+        data['trip_count'] = Trip.query.filter_by(driver_id=d.id).count()
+        active = Trip.query.filter_by(driver_id=d.id, ended_at=None).first()
+        data['is_active'] = active is not None
+        result.append(data)
+    return jsonify({'drivers': result, 'count': len(result)})

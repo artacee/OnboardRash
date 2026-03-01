@@ -14,8 +14,10 @@ import {
   Inter_700Bold,
   Inter_800ExtraBold,
 } from '@expo-google-fonts/inter';
+import {
+  SpaceGrotesk_700Bold,
+} from '@expo-google-fonts/space-grotesk';
 import * as SplashScreen from 'expo-splash-screen';
-import { Background } from '@/components/ui/Background';
 import * as api from '@/services/api';
 import { initPiUrl } from '@/services/gpsStreamer';
 
@@ -28,6 +30,7 @@ export default function RootLayout() {
     Inter_600SemiBold,
     Inter_700Bold,
     Inter_800ExtraBold,
+    SpaceGrotesk_700Bold,
   });
 
   const [authChecked, setAuthChecked] = useState(false);
@@ -73,7 +76,6 @@ export default function RootLayout() {
 
   return (
     <View style={styles.root}>
-      <Background />
       <StatusBar style="dark" />
       <Stack
         screenOptions={{

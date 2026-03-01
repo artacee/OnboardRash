@@ -4,14 +4,20 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassButton } from '@/components/ui/GlassButton';
 import { GlassInput } from '@/components/ui/GlassInput';
+import { AnimatedEntry } from '@/components/ui/AnimatedEntry';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { Background } from '@/components/ui/Background';
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import * as api from '@/services/api';
 import { ApiError } from '@/services/api';
 
@@ -34,6 +40,7 @@ export default function RegisterScreen() {
     });
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+    const [serverError, setServerError] = useState<string | null>(null);
 
     const updateField = (key: keyof FormState, value: string) => {
         setForm(prev => ({ ...prev, [key]: value }));
@@ -54,6 +61,7 @@ export default function RegisterScreen() {
         if (!validate()) return;
 
         setLoading(true);
+        setServerError(null);
         try {
             await api.register({
                 full_name: form.full_name.trim(),
@@ -68,13 +76,14 @@ export default function RegisterScreen() {
                 if (err.status === 409) {
                     setErrors({ username: 'Username already taken' });
                 } else if (err.status === 0) {
-                    Alert.alert('Connection Error', err.message);
+                    setServerError(err.message);
                 } else {
-                    Alert.alert('Registration Failed', err.message);
+                    setServerError(err.message);
                 }
             } else {
-                Alert.alert('Registration Failed', err.message || 'Could not create account');
+                setServerError(err.message || 'Could not create account');
             }
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         } finally {
             setLoading(false);
         }
@@ -82,6 +91,7 @@ export default function RegisterScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
+            <Background variant="aurora" />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.keyboardView}
@@ -91,20 +101,54 @@ export default function RegisterScreen() {
                     showsVerticalScrollIndicator={false}
                 >
                     {/* Back button */}
-                    <TouchableOpacity
+                    <PressableScale
                         onPress={() => router.back()}
+                        haptic hapticStyle="light"
                         style={styles.backButton}
+                        scaleTo={0.88}
                     >
+                        <BlurView intensity={Platform.OS === 'android' ? 15 : 30} tint="light" style={[StyleSheet.absoluteFill, { borderRadius: 22, overflow: 'hidden' }]} />
                         <Ionicons name="arrow-back" size={24} color={theme.colors.textPrimary} />
-                    </TouchableOpacity>
+                    </PressableScale>
 
-                    {/* Header */}
+                    {/* Header — word-by-word spring reveal */}
                     <View style={styles.header}>
-                        <Text style={styles.title}>Create Account</Text>
-                        <Text style={styles.subtitle}>Join as a registered driver</Text>
+                        <View style={styles.titleRow}>
+                            {['Create', 'Account'].map((word, i) => (
+                                <Animated.Text
+                                    key={word}
+                                    entering={FadeInDown
+                                        .delay(i * 70)
+                                        .springify()
+                                        .damping(16)
+                                        .stiffness(220)
+                                        .withInitialValues({ originY: 28, opacity: 0 })}
+                                    style={styles.titleWord}
+                                >
+                                    {word}
+                                </Animated.Text>
+                            ))}
+                        </View>
+                        <Animated.Text
+                            entering={FadeIn.delay(240).duration(500)}
+                            style={styles.subtitle}
+                        >
+                            Join as a registered driver
+                        </Animated.Text>
                     </View>
 
+                    {/* Inline Error Banner */}
+                    {serverError && (
+                        <Animated.View entering={FadeInDown.duration(300).springify()}>
+                            <GlassCard tier={2} style={styles.errorBanner}>
+                                <Ionicons name="alert-circle" size={20} color={theme.colors.danger} />
+                                <Text style={styles.errorBannerText}>{serverError}</Text>
+                            </GlassCard>
+                        </Animated.View>
+                    )}
+
                     {/* Registration Card */}
+                    <AnimatedEntry delay={100} type="slide-left">
                     <GlassCard tier={0} style={styles.card}>
                         <GlassInput
                             label="Full Name"
@@ -158,17 +202,21 @@ export default function RegisterScreen() {
                             style={styles.registerButton}
                         />
                     </GlassCard>
+                    </AnimatedEntry>
 
                     {/* Login link */}
-                    <TouchableOpacity
+                    <AnimatedEntry delay={200} type="fade">
+                    <PressableScale
                         onPress={() => router.push('/login')}
                         style={styles.loginLink}
+                        scaleTo={0.97}
                     >
                         <Text style={styles.loginText}>
                             Already have an account?{' '}
                             <Text style={styles.loginTextBold}>Sign In</Text>
                         </Text>
-                    </TouchableOpacity>
+                    </PressableScale>
+                    </AnimatedEntry>
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -197,19 +245,28 @@ const styles = StyleSheet.create({
         height: 44,
         borderRadius: 22,
         backgroundColor: theme.colors.glassTier2,
+        borderTopWidth: 1,
+        borderTopColor: theme.colors.glassBorderLight,
         alignItems: 'center',
         justifyContent: 'center',
+        overflow: 'hidden',
     },
     header: {
         marginBottom: theme.spacing['2xl'],
         marginTop: theme.spacing['3xl'],
     },
-    title: {
-        fontFamily: theme.fonts.title,
-        fontSize: theme.fontSize.title1,
-        fontWeight: theme.fontWeight.title,
-        color: theme.colors.textPrimary,
-        letterSpacing: -0.5,
+    titleRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: theme.spacing.sm,
+        marginBottom: theme.spacing.xs,
+    },
+    titleWord: {
+        fontFamily: 'Inter_400Regular',
+        fontSize: 38,
+        fontWeight: '400',
+        color: '#7850DC',
+        letterSpacing: -1.5,
     },
     subtitle: {
         fontFamily: theme.fonts.body,
@@ -223,6 +280,22 @@ const styles = StyleSheet.create({
     },
     registerButton: {
         marginTop: theme.spacing.sm,
+    },
+    errorBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.sm,
+        marginBottom: theme.spacing.base,
+        paddingVertical: theme.spacing.md,
+        paddingHorizontal: theme.spacing.base,
+        borderWidth: 1,
+        borderColor: theme.colors.dangerBg,
+    },
+    errorBannerText: {
+        flex: 1,
+        fontFamily: theme.fonts.body,
+        fontSize: theme.fontSize.footnote,
+        color: theme.colors.dangerText,
     },
     loginLink: {
         alignItems: 'center',

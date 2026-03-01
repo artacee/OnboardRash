@@ -1,17 +1,23 @@
 /**
  * Login Screen — Frosted glass card with username/password.
- * Inline validation via GlassInput error prop + differentiated server errors.
+ * Inline validation via GlassInput error prop + glass inline error banner.
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassButton } from '@/components/ui/GlassButton';
 import { GlassInput } from '@/components/ui/GlassInput';
+import { AnimatedEntry } from '@/components/ui/AnimatedEntry';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { Background } from '@/components/ui/Background';
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import * as api from '@/services/api';
 import { ApiError } from '@/services/api';
 
@@ -21,6 +27,7 @@ export default function LoginScreen() {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
+    const [serverError, setServerError] = useState<string | null>(null);
 
     const validate = (): boolean => {
         const newErrors: typeof errors = {};
@@ -35,21 +42,23 @@ export default function LoginScreen() {
 
         setLoading(true);
         setErrors({});
+        setServerError(null);
         try {
             await api.login(username.trim(), password);
             router.replace('/(tabs)/home');
         } catch (err: any) {
             if (err instanceof ApiError) {
                 if (err.status === 401) {
-                    Alert.alert('Login Failed', 'Invalid username or password.');
+                    setServerError('Invalid username or password.');
                 } else if (err.status === 0) {
-                    Alert.alert('Connection Error', err.message);
+                    setServerError(err.message);
                 } else {
-                    Alert.alert('Server Error', err.message);
+                    setServerError(err.message);
                 }
             } else {
-                Alert.alert('Login Failed', err.message || 'Something went wrong.');
+                setServerError(err.message || 'Something went wrong.');
             }
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         } finally {
             setLoading(false);
         }
@@ -57,26 +66,65 @@ export default function LoginScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
+            <Background variant="aurora" />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.keyboardView}
             >
-                <View style={styles.content}>
+                <ScrollView
+                    contentContainerStyle={styles.content}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
                     {/* Back button */}
-                    <TouchableOpacity
+                    <PressableScale
                         onPress={() => router.back()}
+                        haptic hapticStyle="light"
                         style={styles.backButton}
+                        scaleTo={0.88}
                     >
+                        <BlurView intensity={Platform.OS === 'android' ? 15 : 30} tint="light" style={[StyleSheet.absoluteFill, { borderRadius: 22, overflow: 'hidden' }]} />
                         <Ionicons name="arrow-back" size={24} color={theme.colors.textPrimary} />
-                    </TouchableOpacity>
+                    </PressableScale>
 
-                    {/* Header */}
+                    {/* Header — word-by-word spring reveal */}
                     <View style={styles.header}>
-                        <Text style={styles.title}>Welcome Back</Text>
-                        <Text style={styles.subtitle}>Sign in to your account</Text>
+                        <View style={styles.titleRow}>
+                            {['Welcome', 'Back'].map((word, i) => (
+                                <Animated.Text
+                                    key={word}
+                                    entering={FadeInDown
+                                        .delay(i * 70)
+                                        .springify()
+                                        .damping(16)
+                                        .stiffness(220)
+                                        .withInitialValues({ originY: 28, opacity: 0 })}
+                                    style={styles.titleWord}
+                                >
+                                    {word}
+                                </Animated.Text>
+                            ))}
+                        </View>
+                        <Animated.Text
+                            entering={FadeIn.delay(240).duration(500)}
+                            style={styles.subtitle}
+                        >
+                            Sign in to your account
+                        </Animated.Text>
                     </View>
 
+                    {/* Inline Error Banner */}
+                    {serverError && (
+                        <Animated.View entering={FadeInDown.duration(300).springify()} style={styles.errorBannerWrap}>
+                            <GlassCard tier={2} noPadding style={styles.errorBanner}>
+                                <Ionicons name="alert-circle" size={20} color={theme.colors.danger} />
+                                <Text style={styles.errorBannerText}>{serverError}</Text>
+                            </GlassCard>
+                        </Animated.View>
+                    )}
+
                     {/* Login Card */}
+                    <AnimatedEntry delay={100} type="slide-left">
                     <GlassCard tier={0} style={styles.card}>
                         <GlassInput
                             label="Username"
@@ -107,17 +155,22 @@ export default function LoginScreen() {
                         />
                     </GlassCard>
 
+                    </AnimatedEntry>
+
                     {/* Register link */}
-                    <TouchableOpacity
+                    <AnimatedEntry delay={200} type="fade">
+                        <PressableScale
                         onPress={() => router.push('/register')}
                         style={styles.registerLink}
+                        scaleTo={0.97}
                     >
                         <Text style={styles.registerText}>
                             Don't have an account?{' '}
                             <Text style={styles.registerTextBold}>Register</Text>
                         </Text>
-                    </TouchableOpacity>
-                </View>
+                    </PressableScale>
+                    </AnimatedEntry>
+                </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
@@ -131,8 +184,9 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     content: {
-        flex: 1,
+        flexGrow: 1,
         paddingHorizontal: theme.spacing.xl,
+        paddingVertical: theme.spacing['3xl'],
         justifyContent: 'center',
     },
     backButton: {
@@ -144,18 +198,27 @@ const styles = StyleSheet.create({
         height: 44,
         borderRadius: 22,
         backgroundColor: theme.colors.glassTier2,
+        borderTopWidth: 1,
+        borderTopColor: theme.colors.glassBorderLight,
         alignItems: 'center',
         justifyContent: 'center',
+        overflow: 'hidden',
     },
     header: {
         marginBottom: theme.spacing['2xl'],
     },
-    title: {
-        fontFamily: theme.fonts.title,
-        fontSize: theme.fontSize.title1,
-        fontWeight: theme.fontWeight.title,
-        color: theme.colors.textPrimary,
-        letterSpacing: -0.5,
+    titleRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: theme.spacing.sm,
+        marginBottom: theme.spacing.xs,
+    },
+    titleWord: {
+        fontFamily: 'Inter_400Regular',
+        fontSize: 38,
+        fontWeight: '400',
+        color: '#7850DC',
+        letterSpacing: -1.5,
     },
     subtitle: {
         fontFamily: theme.fonts.body,
@@ -169,6 +232,24 @@ const styles = StyleSheet.create({
     },
     loginButton: {
         marginTop: theme.spacing.sm,
+    },
+    errorBannerWrap: {
+        marginBottom: theme.spacing.base,
+    },
+    errorBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.sm,
+        paddingVertical: theme.spacing.md,
+        paddingHorizontal: theme.spacing.base,
+        borderWidth: 1,
+        borderColor: theme.colors.dangerBg,
+    },
+    errorBannerText: {
+        flex: 1,
+        fontFamily: theme.fonts.body,
+        fontSize: theme.fontSize.footnote,
+        color: theme.colors.dangerText,
     },
     registerLink: {
         alignItems: 'center',

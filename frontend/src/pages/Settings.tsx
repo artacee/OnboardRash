@@ -23,10 +23,16 @@ import {
     X,
     AlertTriangle,
     Play,
-    Square
+    Square,
+    Plus,
+    CheckCircle,
+    Phone,
+    ShieldCheck,
+    Hash
 } from 'lucide-react'
 import api from '@/services/api'
 import type { Bus as BusType } from '@/types'
+import type { DriverRecord } from '@/services/api'
 import './Settings.css'
 
 interface SystemStats {
@@ -38,6 +44,7 @@ interface SystemStats {
 
 export default function Settings() {
     const [buses, setBuses] = useState<BusType[]>([])
+    const [drivers, setDrivers] = useState<DriverRecord[]>([])
     const [stats, setStats] = useState<SystemStats | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [showResetConfirm, setShowResetConfirm] = useState(false)
@@ -48,6 +55,38 @@ export default function Settings() {
     const [isSimRunning, setIsSimRunning] = useState(false)
     const [isSimLoading, setIsSimLoading] = useState(false)
 
+    // Register bus modal state
+    const [showAddBus, setShowAddBus] = useState(false)
+    const [busForm, setBusForm] = useState({ registration_number: '', driver_name: '', route: '' })
+    const [busFormError, setBusFormError] = useState<string | null>(null)
+    const [isAddingBus, setIsAddingBus] = useState(false)
+    const [addBusSuccess, setAddBusSuccess] = useState(false)
+
+    const handleAddBus = async () => {
+        const reg = busForm.registration_number.trim()
+        if (!reg) { setBusFormError('Registration number is required'); return }
+        setIsAddingBus(true)
+        setBusFormError(null)
+        try {
+            await api.buses.registerBus({
+                registration_number: reg,
+                driver_name: busForm.driver_name.trim() || undefined,
+                route: busForm.route.trim() || undefined,
+            })
+            setAddBusSuccess(true)
+            setTimeout(() => {
+                setAddBusSuccess(false)
+                setShowAddBus(false)
+                setBusForm({ registration_number: '', driver_name: '', route: '' })
+                fetchData()
+            }, 1500)
+        } catch (err: any) {
+            setBusFormError(err.message || 'Failed to register bus')
+        } finally {
+            setIsAddingBus(false)
+        }
+    }
+
     // Fetch data
     useEffect(() => {
         fetchData()
@@ -55,11 +94,13 @@ export default function Settings() {
 
     const fetchData = async () => {
         try {
-            const [busesData, statsData] = await Promise.all([
+            const [busesData, statsData, driversData] = await Promise.all([
                 api.buses.getBuses(),
-                api.stats.getStats()
+                api.stats.getStats(),
+                api.drivers.getDrivers(),
             ])
             setBuses(busesData)
+            setDrivers(driversData)
             setStats({
                 total_events: statsData.total_events_today,
                 total_buses: busesData.length,
@@ -319,9 +360,20 @@ export default function Settings() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.4, duration: 0.5 }}
                     >
-                        <h2 className="section-title">
-                            Registered Buses ({buses.length})
-                        </h2>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-5)' }}>
+                            <h2 className="section-title" style={{ marginBottom: 0 }}>
+                                Registered Buses ({buses.length})
+                            </h2>
+                            <motion.button
+                                className="add-bus-btn"
+                                onClick={() => { setBusFormError(null); setAddBusSuccess(false); setShowAddBus(true) }}
+                                whileHover={{ scale: 1.04, y: -1 }}
+                                whileTap={{ scale: 0.97 }}
+                            >
+                                <Plus size={16} />
+                                Register Bus
+                            </motion.button>
+                        </div>
 
                         {isLoading ? (
                             <div className="buses-loading">
@@ -341,7 +393,7 @@ export default function Settings() {
                                     No buses registered
                                 </p>
                                 <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-tertiary)' }}>
-                                    Register buses through the IoT device API
+                                    Click &ldquo;Register Bus&rdquo; above to add your first bus
                                 </p>
                             </div>
                         ) : (
@@ -398,8 +450,222 @@ export default function Settings() {
                             </div>
                         )}
                     </motion.section>
+
+                    {/* ─── REGISTERED DRIVERS ─── */}
+                    <motion.section
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5, duration: 0.5 }}
+                    >
+                        <h2 className="section-title">
+                            Registered Drivers ({drivers.length})
+                        </h2>
+
+                        {isLoading ? (
+                            <div className="buses-loading">
+                                {Array.from({ length: 2 }).map((_, i) => (
+                                    <div key={i} className="skeleton-card" />
+                                ))}
+                            </div>
+                        ) : drivers.length === 0 ? (
+                            <div className="glass-card empty-state">
+                                <User size={48} style={{ opacity: 0.3, marginBottom: 'var(--space-4)' }} />
+                                <p style={{ fontSize: 'var(--text-title-3)', fontWeight: 'var(--weight-headline)', color: 'var(--text-secondary)', marginBottom: 'var(--space-2)' }}>
+                                    No drivers registered
+                                </p>
+                                <p style={{ fontSize: 'var(--text-body)', color: 'var(--text-tertiary)' }}>
+                                    Drivers register through the driver companion app
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="buses-grid">
+                                <AnimatePresence mode="popLayout">
+                                    {drivers.map((driver, index) => (
+                                        <motion.div
+                                            key={driver.id}
+                                            className="glass-card bus-card"
+                                            initial={{ opacity: 0, scale: 0.95 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.95 }}
+                                            transition={{ delay: index * 0.05, duration: 0.3 }}
+                                            whileHover={{ y: -4, scale: 1.02 }}
+                                        >
+                                            <div className="bus-card-header">
+                                                <div className="bus-icon" style={{ background: 'rgba(96,165,250,0.12)' }}>
+                                                    <User size={24} style={{ color: 'var(--color-info)' }} />
+                                                </div>
+                                                <span className={`bus-status ${driver.is_active ? 'active' : 'inactive'}`}>
+                                                    {driver.is_active ? 'On Trip' : 'Offline'}
+                                                </span>
+                                            </div>
+
+                                            <div className="bus-card-body">
+                                                <h3 className="bus-registration" style={{ fontSize: 'var(--text-title-3)' }}>
+                                                    {driver.full_name}
+                                                </h3>
+
+                                                <div className="bus-detail">
+                                                    <Hash size={14} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                                                    <span style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-footnote)' }}>@{driver.username}</span>
+                                                </div>
+
+                                                {driver.phone_number && (
+                                                    <div className="bus-detail">
+                                                        <Phone size={14} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                                                        <span>{driver.phone_number}</span>
+                                                    </div>
+                                                )}
+
+                                                {driver.license_number && (
+                                                    <div className="bus-detail">
+                                                        <ShieldCheck size={14} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                                                        <span>{driver.license_number}</span>
+                                                    </div>
+                                                )}
+
+                                                <div className="bus-detail">
+                                                    <Activity size={14} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                                                    <span className="bus-meta">
+                                                        {driver.trip_count} trip{driver.trip_count !== 1 ? 's' : ''} · Joined {new Date(driver.created_at).toLocaleDateString()}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                                </AnimatePresence>
+                            </div>
+                        )}
+                    </motion.section>
                 </div>
             </motion.div>
+
+            {/* ─── ADD BUS MODAL ─── */}
+            <AnimatePresence>
+                {showAddBus && (
+                    <motion.div
+                        className="modal-overlay"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => !isAddingBus && setShowAddBus(false)}
+                    >
+                        <motion.div
+                            className="glass-card confirm-modal"
+                            initial={{ opacity: 0, scale: 0.9, y: 40 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 40 }}
+                            transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
+                            onClick={e => e.stopPropagation()}
+                        >
+                            {addBusSuccess ? (
+                                <div className="success-content">
+                                    <motion.div
+                                        initial={{ scale: 0 }}
+                                        animate={{ scale: 1 }}
+                                        transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                                        style={{
+                                            width: '64px', height: '64px', borderRadius: '50%',
+                                            background: 'var(--color-safe-bg)', display: 'flex',
+                                            alignItems: 'center', justifyContent: 'center',
+                                            marginBottom: 'var(--space-4)'
+                                        }}
+                                    >
+                                        <CheckCircle size={32} style={{ color: 'var(--color-safe)' }} />
+                                    </motion.div>
+                                    <h3 style={{ fontSize: 'var(--text-title-2)', fontWeight: 'var(--weight-title)', color: 'var(--text-primary)', marginBottom: 'var(--space-2)' }}>Bus Registered!</h3>
+                                    <p style={{ fontSize: 'var(--text-callout)', color: 'var(--text-secondary)', textAlign: 'center' }}>
+                                        The bus is now available in the driver app.
+                                    </p>
+                                </div>
+                            ) : (
+                                <>
+                                    <motion.button
+                                        className="modal-close"
+                                        onClick={() => setShowAddBus(false)}
+                                        whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
+                                        disabled={isAddingBus}
+                                    >
+                                        <X size={20} />
+                                    </motion.button>
+
+                                    <div style={{ textAlign: 'center', marginBottom: 'var(--space-6)' }}>
+                                        <div style={{
+                                            width: '56px', height: '56px', borderRadius: '16px',
+                                            background: 'var(--color-info-bg)', display: 'flex',
+                                            alignItems: 'center', justifyContent: 'center',
+                                            margin: '0 auto var(--space-4)'
+                                        }}>
+                                            <Bus size={28} style={{ color: 'var(--color-info)' }} />
+                                        </div>
+                                        <h3 style={{ fontSize: 'var(--text-title-2)', fontWeight: 'var(--weight-title)', color: 'var(--text-primary)', marginBottom: 'var(--space-1)' }}>Register New Bus</h3>
+                                        <p style={{ fontSize: 'var(--text-callout)', color: 'var(--text-tertiary)' }}>Will appear in driver app immediately</p>
+                                    </div>
+
+                                    <div className="bus-form">
+                                        <div className="bus-form-field">
+                                            <label className="bus-form-label">Registration Number *</label>
+                                            <input
+                                                className="bus-form-input"
+                                                placeholder="e.g. KL-01-AB-1234"
+                                                value={busForm.registration_number}
+                                                onChange={e => setBusForm(f => ({ ...f, registration_number: e.target.value }))}
+                                                onKeyDown={e => e.key === 'Enter' && handleAddBus()}
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <div className="bus-form-field">
+                                            <label className="bus-form-label">Driver Name <span style={{ color: 'var(--text-quaternary)' }}>(optional)</span></label>
+                                            <input
+                                                className="bus-form-input"
+                                                placeholder="e.g. Rahul Kumar"
+                                                value={busForm.driver_name}
+                                                onChange={e => setBusForm(f => ({ ...f, driver_name: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div className="bus-form-field">
+                                            <label className="bus-form-label">Route <span style={{ color: 'var(--text-quaternary)' }}>(optional)</span></label>
+                                            <input
+                                                className="bus-form-input"
+                                                placeholder="e.g. Kollam – Trivandrum"
+                                                value={busForm.route}
+                                                onChange={e => setBusForm(f => ({ ...f, route: e.target.value }))}
+                                            />
+                                        </div>
+                                        {busFormError && (
+                                            <p style={{ fontSize: 'var(--text-footnote)', color: 'var(--color-danger)', marginTop: 'var(--space-1)' }}>
+                                                {busFormError}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="modal-actions">
+                                        <motion.button
+                                            className="modal-button modal-button-secondary"
+                                            onClick={() => setShowAddBus(false)}
+                                            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                                            disabled={isAddingBus}
+                                        >
+                                            Cancel
+                                        </motion.button>
+                                        <motion.button
+                                            className="modal-button modal-button-primary"
+                                            onClick={handleAddBus}
+                                            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                                            disabled={isAddingBus}
+                                        >
+                                            {isAddingBus ? (
+                                                <><RefreshCw size={16} className="spinning" /> Registering...</>
+                                            ) : (
+                                                <><Bus size={16} /> Register Bus</>
+                                            )}
+                                        </motion.button>
+                                    </div>
+                                </>
+                            )}
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* ─── RESET CONFIRMATION MODAL ─── */}
             <AnimatePresence>

@@ -34,6 +34,11 @@ import { ScoreArc } from '@/components/ui/ScoreArc';
 import { TripButton } from '@/components/ui/TripButton';
 import { PulseDot } from '@/components/ui/PulseDot';
 import { AnimatedEntry } from '@/components/ui/AnimatedEntry';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { HomeSkeleton } from '@/components/ui/ShimmerPlaceholder';
+import { Background } from '@/components/ui/Background';
+import { GradientTitle, GRADIENT_PRESETS } from '@/components/ui/GradientTitle';
+import { SectionLabel, SECTION_DOT_COLORS } from '@/components/ui/SectionLabel';
 import { theme, severityColors, eventTypeLabels } from '@/constants/theme';
 import * as api from '@/services/api';
 import * as gps from '@/services/gpsStreamer';
@@ -229,15 +234,14 @@ export default function HomeScreen() {
     };
 
     const tripScore = activeTrip?.score ?? profile?.stats?.avg_score ?? 100;
+    const bgVariant = activeTrip ? 'ember' : 'cockpit';
 
     // ─── Loading Skeleton ────────────────────────────────
     if (initialLoading) {
         return (
             <SafeAreaView style={styles.container}>
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={theme.colors.textTertiary} />
-                    <Text style={styles.loadingText}>Loading...</Text>
-                </View>
+                <Background variant="cockpit" />
+                <HomeSkeleton />
             </SafeAreaView>
         );
     }
@@ -246,6 +250,7 @@ export default function HomeScreen() {
     if (fetchError && !profile) {
         return (
             <SafeAreaView style={styles.container}>
+                <Background variant={bgVariant} />
                 <View style={styles.errorContainer}>
                     <GlassCard tier={1} style={styles.errorCard}>
                         <Ionicons name="cloud-offline-outline" size={48} color={theme.colors.danger} />
@@ -265,6 +270,7 @@ export default function HomeScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
+            <Background variant={bgVariant} />
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
@@ -275,9 +281,11 @@ export default function HomeScreen() {
                 {/* Header */}
                 <AnimatedEntry delay={0}>
                     <View style={styles.header}>
-                        <Text style={styles.greeting}>
-                            Hello, {profile?.driver?.full_name?.split(' ')[0] || 'Driver'}
-                        </Text>
+                        <GradientTitle
+                            text={`Hello, ${profile?.driver?.full_name?.split(' ')[0] || 'Driver'}`}
+                            colors={GRADIENT_PRESETS.trip}
+                            fontSize={theme.fontSize.title1}
+                        />
                         <Text style={styles.headerSubtitle}>
                             {activeTrip ? 'Trip in progress' : 'Ready to drive'}
                         </Text>
@@ -286,17 +294,17 @@ export default function HomeScreen() {
 
                 {/* ═══ Trip Control Card ═══ */}
                 <AnimatedEntry delay={100}>
-                    <GlassCard tier={0} style={styles.tripCard}>
+                    <GlassCard tier={0} style={styles.tripCard} contentStyle={styles.tripCardContent} glowing={!!activeTrip} glowColor={theme.colors.safe}>
                         {/* Score Arc */}
                         <ScoreArc score={tripScore} size={150} strokeWidth={8} />
 
-                        {/* Live Timer */}
+                        {/* Live Timer — with breathing recording dot */}
                         {activeTrip && (
                             <Animated.View
                                 entering={FadeIn.duration(400)}
                                 style={styles.timerSection}
                             >
-                                <View style={styles.timerDot} />
+                                <PulseDot active={true} color={theme.colors.danger} size={6} />
                                 <Text style={styles.timerText}>{elapsedTime}</Text>
                             </Animated.View>
                         )}
@@ -315,49 +323,65 @@ export default function HomeScreen() {
                 {/* ═══ Status Panel ═══ */}
                 <AnimatedEntry delay={200}>
                     <GlassCard tier={1} style={styles.statusCard}>
-                        <Text style={styles.sectionTitle}>System Status</Text>
+                        <SectionLabel text="System Status" dotColor={SECTION_DOT_COLORS.trip} />
                         <View style={styles.statusGrid}>
-                            <View style={styles.statusItem}>
-                                <PulseDot active={piConnected} color={theme.colors.safe} />
-                                <View>
-                                    <Text style={styles.statusLabel}>Detection Unit</Text>
-                                    <Text style={styles.statusValue}>
-                                        {piConnected ? 'Connected' : 'Disconnected'}
-                                    </Text>
+                            <PressableScale scaleTo={0.98} haptic={false}>
+                                <View style={styles.statusItem}>
+                                    <View style={[styles.statusIconBg, { backgroundColor: piConnected ? theme.colors.safeBg : theme.colors.dangerBg }]}>
+                                        <PulseDot active={piConnected} color={theme.colors.safe} size={8} delay={0} />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.statusLabel}>Detection Unit</Text>
+                                        <Text style={styles.statusValue}>
+                                            {piConnected ? 'Connected' : 'Disconnected'}
+                                        </Text>
+                                    </View>
                                 </View>
-                            </View>
+                            </PressableScale>
 
-                            <View style={styles.statusItem}>
-                                <PulseDot active={gpsStreaming} color={theme.colors.info} />
-                                <View>
-                                    <Text style={styles.statusLabel}>GPS Stream</Text>
-                                    <Text style={styles.statusValue}>
-                                        {gpsStreaming ? 'Active (2Hz)' : 'Inactive'}
-                                    </Text>
+                            <PressableScale scaleTo={0.98} haptic={false}>
+                                <View style={styles.statusItem}>
+                                    <View style={[styles.statusIconBg, { backgroundColor: gpsStreaming ? theme.colors.infoBg : theme.colors.dangerBg }]}>
+                                        <PulseDot active={gpsStreaming} color={theme.colors.info} size={8} delay={200} />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.statusLabel}>GPS Stream</Text>
+                                        <Text style={styles.statusValue}>
+                                            {gpsStreaming ? 'Active (2Hz)' : 'Inactive'}
+                                        </Text>
+                                    </View>
                                 </View>
-                            </View>
+                            </PressableScale>
 
-                            <View style={styles.statusItem}>
-                                <PulseDot active={socketConnected} color={theme.colors.warning} />
-                                <View>
-                                    <Text style={styles.statusLabel}>Live Alerts</Text>
-                                    <Text style={styles.statusValue}>
-                                        {socketConnected ? 'Connected' : 'Disconnected'}
-                                    </Text>
+                            <PressableScale scaleTo={0.98} haptic={false}>
+                                <View style={styles.statusItem}>
+                                    <View style={[styles.statusIconBg, { backgroundColor: socketConnected ? theme.colors.warningBg : theme.colors.dangerBg }]}>
+                                        <PulseDot active={socketConnected} color={theme.colors.warning} size={8} delay={400} />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.statusLabel}>Live Alerts</Text>
+                                        <Text style={styles.statusValue}>
+                                            {socketConnected ? 'Connected' : 'Disconnected'}
+                                        </Text>
+                                    </View>
                                 </View>
-                            </View>
+                            </PressableScale>
 
-                            <View style={styles.statusItem}>
-                                <PulseDot active={!!activeTrip} color="#7850dc" />
-                                <View>
-                                    <Text style={styles.statusLabel}>Trip</Text>
-                                    <Text style={styles.statusValue}>
-                                        {activeTrip
-                                            ? `Active · ${activeTrip.bus_registration || 'Bus'}`
-                                            : 'Not started'}
-                                    </Text>
+                            <PressableScale scaleTo={0.98} haptic={false}>
+                                <View style={styles.statusItem}>
+                                    <View style={[styles.statusIconBg, { backgroundColor: activeTrip ? 'rgba(120, 80, 220, 0.12)' : theme.colors.dangerBg }]}>
+                                        <PulseDot active={!!activeTrip} color={theme.colors.orbPurple} size={8} delay={600} />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.statusLabel}>Trip</Text>
+                                        <Text style={styles.statusValue}>
+                                            {activeTrip
+                                                ? `Active · ${activeTrip.bus_registration || 'Bus'}`
+                                                : 'Not started'}
+                                        </Text>
+                                    </View>
                                 </View>
-                            </View>
+                            </PressableScale>
                         </View>
                     </GlassCard>
                 </AnimatedEntry>
@@ -366,18 +390,17 @@ export default function HomeScreen() {
                 {events.length > 0 && (
                     <AnimatedEntry delay={300}>
                         <GlassCard tier={1} style={styles.alertsCard}>
-                            <Text style={styles.sectionTitle}>Recent Alerts</Text>
+                            <SectionLabel text="Recent Alerts" dotColor={SECTION_DOT_COLORS.trip} />
                             {events.map((event, index) => {
                                 const severity = severityColors[event.severity as keyof typeof severityColors] || severityColors.MEDIUM;
                                 const isHigh = event.severity === 'HIGH';
                                 return (
-                                    <AnimatedEntry key={event.id || index} delay={350 + index * 80}>
-                                        <TouchableOpacity
-                                            activeOpacity={0.7}
+                                    <AnimatedEntry key={event.id || index} delay={350 + index * 80} type="slide-left">
+                                        <PressableScale
                                             onPress={() => {
-                                                Haptics.selectionAsync();
                                                 setSelectedEvent(event);
                                             }}
+                                            scaleTo={0.97}
                                         >
                                             <View
                                                 style={[
@@ -385,7 +408,7 @@ export default function HomeScreen() {
                                                     isHigh && {
                                                         borderLeftWidth: 3,
                                                         borderLeftColor: theme.colors.danger,
-                                                        backgroundColor: 'rgba(248, 113, 113, 0.06)',
+                                                        backgroundColor: theme.colors.dangerBg,
                                                         borderRadius: theme.radius.sm,
                                                         paddingLeft: theme.spacing.md,
                                                     },
@@ -415,7 +438,7 @@ export default function HomeScreen() {
                                                     color={isHigh ? theme.colors.danger : theme.colors.textQuaternary}
                                                 />
                                             </View>
-                                        </TouchableOpacity>
+                                        </PressableScale>
                                     </AnimatedEntry>
                                 );
                             })}
@@ -423,7 +446,7 @@ export default function HomeScreen() {
                     </AnimatedEntry>
                 )}
 
-                <View style={{ height: 100 }} />
+                <View style={{ height: 110 }} />
             </ScrollView>
 
             {/* ═══ Bus Selection Modal ═══ */}
@@ -560,18 +583,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: theme.spacing.xl,
         paddingTop: theme.spacing.base,
     },
-    // Loading state
-    loadingContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: theme.spacing.base,
-    },
-    loadingText: {
-        fontFamily: theme.fonts.body,
-        fontSize: theme.fontSize.body,
-        color: theme.colors.textTertiary,
-    },
+
     // Error state
     errorContainer: {
         flex: 1,
@@ -612,9 +624,11 @@ const styles = StyleSheet.create({
         marginTop: theme.spacing.xs,
     },
     tripCard: {
-        alignItems: 'center',
         marginBottom: theme.spacing.xl,
         paddingVertical: theme.spacing['2xl'],
+    },
+    tripCardContent: {
+        alignItems: 'center',
     },
     timerSection: {
         flexDirection: 'row',
@@ -622,12 +636,6 @@ const styles = StyleSheet.create({
         gap: 6,
         marginTop: theme.spacing.base,
         marginBottom: theme.spacing.sm,
-    },
-    timerDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: theme.colors.danger,
     },
     timerText: {
         fontFamily: theme.fonts.headline,
@@ -652,11 +660,18 @@ const styles = StyleSheet.create({
         letterSpacing: 1,
         marginBottom: theme.spacing.base,
     },
-    statusGrid: { gap: theme.spacing.lg },
+    statusGrid: { gap: theme.spacing.base },
     statusItem: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: theme.spacing.md,
+    },
+    statusIconBg: {
+        width: 36,
+        height: 36,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     statusLabel: {
         fontFamily: theme.fonts.body,
@@ -677,7 +692,7 @@ const styles = StyleSheet.create({
         gap: theme.spacing.md,
         paddingVertical: theme.spacing.md,
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: 'rgba(0, 0, 0, 0.06)',
+        borderBottomColor: theme.colors.divider,
     },
     severityBadge: {
         paddingHorizontal: theme.spacing.sm,
@@ -710,7 +725,7 @@ const styles = StyleSheet.create({
     // Bus picker modal
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.35)',
+        backgroundColor: theme.colors.modalOverlay,
         justifyContent: 'flex-end',
     },
     modalContent: {
@@ -719,6 +734,7 @@ const styles = StyleSheet.create({
     },
     modalCard: {
         paddingVertical: theme.spacing.xl,
+        backgroundColor: 'rgba(245, 242, 255, 0.92)',
     },
     modalTitle: {
         fontFamily: theme.fonts.title,
@@ -743,7 +759,7 @@ const styles = StyleSheet.create({
         gap: theme.spacing.md,
         paddingVertical: theme.spacing.md,
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: 'rgba(0, 0, 0, 0.06)',
+        borderBottomColor: theme.colors.divider,
     },
     busIconBg: {
         width: 40,

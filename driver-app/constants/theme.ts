@@ -8,16 +8,22 @@
 export const theme = {
   // ─── Background ────────────────────────────────────────
   colors: {
-    bgBase: '#f5f7fa',
+    bgBase: '#ede8ff',
 
-    // Glass materials (4-tier system)
-    glassTier0: 'rgba(255, 255, 255, 0.48)',
-    glassTier0Hover: 'rgba(255, 255, 255, 0.58)',
-    glassTier1: 'rgba(255, 255, 255, 0.38)',
-    glassTier1Hover: 'rgba(255, 255, 255, 0.50)',
-    glassTier2: 'rgba(255, 255, 255, 0.28)',
-    glassTier2Hover: 'rgba(255, 255, 255, 0.40)',
+    // Glass materials (4-tier system) — near-transparent on iOS (BlurView provides the frost)
+    // On Android these are used as actual backgrounds since BlurView blur is weak
+    glassTier0: 'rgba(255, 255, 255, 0.08)',
+    glassTier0Hover: 'rgba(255, 255, 255, 0.14)',
+    glassTier1: 'rgba(255, 255, 255, 0.06)',
+    glassTier1Hover: 'rgba(255, 255, 255, 0.12)',
+    glassTier2: 'rgba(255, 255, 255, 0.04)',
+    glassTier2Hover: 'rgba(255, 255, 255, 0.10)',
     glassTier3: 'rgba(255, 255, 255, 0.60)',
+    // Android: tinted translucent — no BlurView, must rely on real background showing through.
+    // Pure white rgba causes a white panel. Use lavender tint at low opacity instead.
+    glassTier0Android: 'rgba(210, 195, 255, 0.38)',
+    glassTier1Android: 'rgba(210, 195, 255, 0.28)',
+    glassTier2Android: 'rgba(210, 195, 255, 0.20)',
 
     // Text hierarchy (dark text on light bg)
     textPrimary: 'rgba(0, 0, 0, 0.95)',
@@ -28,12 +34,25 @@ export const theme = {
     // Semantic colors
     safe: '#34d399',
     safeBg: 'rgba(52, 211, 153, 0.12)',
+    safeText: '#047857',
     warning: '#fbbf24',
     warningBg: 'rgba(251, 191, 36, 0.12)',
+    warningText: '#92400e',
     danger: '#f87171',
     dangerBg: 'rgba(248, 113, 113, 0.12)',
+    dangerText: '#b91c1c',
     info: '#60a5fa',
     infoBg: 'rgba(96, 165, 250, 0.12)',
+    infoText: '#1d4ed8',
+
+    // Gradient endpoints for score arc
+    gradientEndSafe: '#6ee7b7',
+    gradientEndWarning: '#fde68a',
+    gradientEndDanger: '#fca5a5',
+
+    // Utility
+    divider: 'rgba(0, 0, 0, 0.06)',
+    modalOverlay: 'rgba(0, 0, 0, 0.35)',
 
     // Borders
     glassBorder: 'rgba(255, 255, 255, 0.35)',
@@ -51,6 +70,38 @@ export const theme = {
 
     white: '#ffffff',
     black: '#000000',
+
+    // Button variant backgrounds
+    primaryBg: 'rgba(52, 211, 153, 0.25)',
+    dangerBtnBg: 'rgba(248, 113, 113, 0.25)',
+
+    // 5th orb (aqua green)
+    orbGreen: 'rgba(80, 220, 180, 0.30)',
+    orbGreenFade: 'rgba(100, 230, 190, 0.10)',
+
+    // Shimmer / skeleton loader
+    shimmerBase: 'rgba(255, 255, 255, 0.08)',
+    shimmerHighlight: 'rgba(255, 255, 255, 0.28)',
+
+    // Inner shadow for glass depth
+    innerShadow: 'rgba(0, 0, 0, 0.04)',
+    innerShadowMd: 'rgba(0, 0, 0, 0.07)',
+
+    // Button press flash
+    pressOverlay: 'rgba(255, 255, 255, 0.15)',
+
+    // Glass border gradient sim (bottom edge)
+    glassBorderDark: 'rgba(0, 0, 0, 0.04)',
+  },
+
+  // ─── Icon Sizes ────────────────────────────────────────
+  iconSize: {
+    xs: 14,
+    sm: 16,
+    md: 20,
+    lg: 24,
+    xl: 32,
+    xxl: 48,
   },
 
   // ─── Border Radius ─────────────────────────────────────
@@ -153,6 +204,22 @@ export const theme = {
     normal: 350,
     slow: 500,
     dramatic: 800,
+  },
+
+  // ─── Animation Spring Presets ──────────────────────────
+  spring: {
+    press: { damping: 15, stiffness: 300, mass: 0.8 },
+    bounce: { damping: 12, stiffness: 150 },
+    smooth: { damping: 20, stiffness: 200 },
+    snappy: { damping: 18, stiffness: 250 },
+    gentle: { damping: 22, stiffness: 120 },
+  },
+
+  // ─── Breathe Timing Presets ────────────────────────────
+  breathe: {
+    slow: 3000,
+    medium: 2000,
+    fast: 1500,
   },
 } as const;
 
