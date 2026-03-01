@@ -78,19 +78,23 @@ def wait_for_server(url, timeout=15):
 # ─── Main ────────────────────────────────────────────────────
 
 def kill_old_processes():
-    """Kill existing python, node, npm processes to free up ports, except this script."""
+    """Free up the ports used by the demo by killing whatever holds them."""
     print("  Ensuring ports are free by stopping old processes...")
     try:
-        current_pid = os.getpid()
         if sys.platform == 'win32':
-            # Stop node, npm, npx, and other python processes except this one
-            cmd = f'Get-Process python, node, npm, npx -ErrorAction SilentlyContinue | Where-Object {{ $_.Id -ne {current_pid} }} | Stop-Process -Force -ErrorAction SilentlyContinue'
-            subprocess.run(["powershell", "-Command", cmd], capture_output=True)
+            # Kill whatever process owns port 5000 (backend), 5173 (frontend), or 8081 (expo)
+            for port in (5000, 5173, 8081):
+                cmd = (
+                    f'$c = netstat -ano | Select-String ":{port}\\s"; '
+                    f'if ($c) {{ $pid_ = ($c[0] -split "\\s+")[-1]; '
+                    f'Stop-Process -Id $pid_ -Force -ErrorAction SilentlyContinue }}'
+                )
+                subprocess.run(["powershell", "-Command", cmd], capture_output=True)
         else:
-            # Unix equivalent
-            cmd = f"ps -eo pid,comm | grep -E 'python|node|npm|npx' | grep -v grep | awk '{{if ($1 != {current_pid}) print $1}}' | xargs -r kill -9"
-            subprocess.run(cmd, shell=True, capture_output=True)
-        time.sleep(1) # Give OS a moment to release the ports
+            for port in (5000, 5173, 8081):
+                cmd = f"lsof -ti tcp:{port} | xargs -r kill -9"
+                subprocess.run(cmd, shell=True, capture_output=True)
+        time.sleep(1)  # Give OS a moment to release the ports
     except Exception:
         pass
 

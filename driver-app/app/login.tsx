@@ -3,7 +3,7 @@
  * Inline validation via GlassInput error prop + glass inline error banner.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,7 +19,7 @@ import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as api from '@/services/api';
-import { ApiError } from '@/services/api';
+import { ApiError, initApiUrl, persistApiUrl } from '@/services/api';
 
 export default function LoginScreen() {
     const router = useRouter();
@@ -28,6 +28,12 @@ export default function LoginScreen() {
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
     const [serverError, setServerError] = useState<string | null>(null);
+    const [showAdvanced, setShowAdvanced] = useState(false);
+    const [serverUrl, setServerUrl] = useState(api.getApiUrl());
+
+    useEffect(() => {
+        initApiUrl().then(() => setServerUrl(api.getApiUrl()));
+    }, []);
 
     const validate = (): boolean => {
         const newErrors: typeof errors = {};
@@ -44,6 +50,7 @@ export default function LoginScreen() {
         setErrors({});
         setServerError(null);
         try {
+            await persistApiUrl(serverUrl.trim().replace(/\/$/, ''));
             await api.login(username.trim(), password);
             router.replace('/(tabs)/home');
         } catch (err: any) {
@@ -170,6 +177,41 @@ export default function LoginScreen() {
                         </Text>
                     </PressableScale>
                     </AnimatedEntry>
+
+                    {/* Advanced — change server URL before login */}
+                    <AnimatedEntry delay={300} type="fade">
+                        <PressableScale
+                            onPress={() => { Haptics.selectionAsync(); setShowAdvanced(v => !v); }}
+                            style={styles.advancedToggle}
+                            scaleTo={0.97}
+                        >
+                            <Ionicons
+                                name={showAdvanced ? 'chevron-up' : 'settings-outline'}
+                                size={14}
+                                color={theme.colors.textTertiary}
+                            />
+                            <Text style={styles.advancedToggleText}>Advanced</Text>
+                        </PressableScale>
+
+                        {showAdvanced && (
+                            <Animated.View entering={FadeInDown.duration(250).springify()}>
+                                <GlassCard tier={2} style={styles.advancedCard}>
+                                    <Text style={styles.advancedLabel}>Backend Server URL</Text>
+                                    <Text style={styles.advancedHint}>
+                                        Set if your laptop has a different IP on the hotspot.{' '}Find it: ipconfig | findstr 192.168
+                                    </Text>
+                                    <GlassInput
+                                        label=""
+                                        placeholder="http://192.168.43.2:5000"
+                                        value={serverUrl}
+                                        onChangeText={setServerUrl}
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                    />
+                                </GlassCard>
+                            </Animated.View>
+                        )}
+                    </AnimatedEntry>
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -264,5 +306,33 @@ const styles = StyleSheet.create({
     registerTextBold: {
         color: theme.colors.textPrimary,
         fontWeight: theme.fontWeight.headline,
+    },
+    advancedToggle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: theme.spacing.xs,
+        paddingVertical: theme.spacing.sm,
+    },
+    advancedToggleText: {
+        fontFamily: theme.fonts.body,
+        fontSize: theme.fontSize.footnote,
+        color: theme.colors.textTertiary,
+    },
+    advancedCard: {
+        marginTop: theme.spacing.sm,
+        gap: theme.spacing.sm,
+    },
+    advancedLabel: {
+        fontFamily: theme.fonts.body,
+        fontSize: theme.fontSize.callout,
+        fontWeight: theme.fontWeight.headline,
+        color: theme.colors.textPrimary,
+    },
+    advancedHint: {
+        fontFamily: theme.fonts.body,
+        fontSize: theme.fontSize.footnote,
+        color: theme.colors.textTertiary,
+        lineHeight: 18,
     },
 });

@@ -10,6 +10,7 @@
  */
 
 import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import type {
     AuthResponse,
@@ -22,8 +23,28 @@ import type {
 
 // ─── Configuration ─────────────────────────────────────
 
-// Default backend URL when using phone hotspot — laptop typically gets 192.168.43.2
-const DEFAULT_API_URL = 'http://192.168.43.2:5000';
+/**
+ * Auto-detect the backend URL from the Expo dev-server.
+ * Expo already knows our laptop's IP (it serves the JS bundle over it).
+ * We reuse that same IP and swap the port to 5000 for Flask.
+ * Works on any network automatically — no manual IP entry needed.
+ */
+function getDefaultApiUrl(): string {
+    try {
+        const debuggerHost =
+            Constants.expoConfig?.hostUri ??
+            (Constants as any).manifest?.debuggerHost;
+        if (debuggerHost) {
+            const ip = debuggerHost.split(':')[0];
+            if (ip) return `http://${ip}:5000`;
+        }
+    } catch (_) {
+        // fall through to fallback
+    }
+    return 'http://localhost:5000';
+}
+
+const DEFAULT_API_URL = getDefaultApiUrl();
 const REQUEST_TIMEOUT_MS = 15_000;
 
 let apiUrl = DEFAULT_API_URL;
@@ -40,6 +61,7 @@ export function getApiUrl() {
 export async function initApiUrl() {
     const stored = await SecureStore.getItemAsync('api_url');
     if (stored) apiUrl = stored;
+    else apiUrl = DEFAULT_API_URL; // re-derive in case network changed
 }
 
 /** Persist the API URL to SecureStore. */

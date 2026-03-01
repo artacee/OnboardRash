@@ -238,12 +238,14 @@ def main():
     # Initialize sensors
     print("\nInitializing sensors...")
     
-    # 1. IMU
+    # 1. IMU (optional — script continues without it)
     try:
         mpu = MPU6050()
+        print("✅ MPU-6050 initialized")
     except Exception as e:
-        print(f"❌ MPU-6050 failed: {e}. Check I2C.")
-        sys.exit(1)
+        print(f"⚠️  MPU-6050 not available: {e}")
+        print("   Running in GPS-only mode (no IMU/rash detection).")
+        mpu = None
     
     # 2. GPS (phone companion app)
     gps = PhoneGPSReceiver(port=PHONE_GPS_PORT)
@@ -303,12 +305,13 @@ def main():
             current_time = time.time()
             
             # --- READ SENSORS ---
-            accel = mpu.read_acceleration()
+            accel = mpu.read_acceleration() if mpu else {'x': 0, 'y': 0, 'z': 0}
             gps_data = gps.read() if gps else {}
             
             # --- SENSOR FUSION ---
-            # Predict state using Accelerometer (X-axis is forward)
-            kf.predict(accel['x'])
+            if mpu:
+                # Predict state using Accelerometer (X-axis is forward)
+                kf.predict(accel['x'])
             
             # Update state using GPS Speed (if available)
             if gps_data.get('speed') is not None:
@@ -337,7 +340,7 @@ def main():
                 last_location_update = current_time
             
             # --- ANALYZE RASH DRIVING (IMU) ---
-            event = rash_detector.analyze(accel)
+            event = rash_detector.analyze(accel) if mpu else None
             
             # --- ANALYZE OVERTAKING (Ultrasonic) ---
             # Use FUSED Speed for better accuracy (Robust against GPS dropouts)
@@ -382,7 +385,7 @@ def main():
     except KeyboardInterrupt:
         print("\nStopped.")
     finally:
-        mpu.close()
+        if mpu: mpu.close()
         if gps: gps.close()
         if camera: camera.close()
         if overtaking_detector: ultrasonic.cleanup()
