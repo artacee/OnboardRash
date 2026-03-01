@@ -133,7 +133,7 @@ def update_location(bus_id):
     bus = Bus.query.get_or_404(bus_id)
     data = request.get_json()
     
-    if not data or not data.get('lat') or not data.get('lng'):
+    if not data or data.get('lat') is None or data.get('lng') is None:
         return jsonify({'error': 'lat and lng are required'}), 400
     
     location = update_bus_location(

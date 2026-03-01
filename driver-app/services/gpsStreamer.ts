@@ -22,8 +22,9 @@ try {
 
 const GPS_TASK_NAME = 'ONBOARDRASH_GPS_STREAM';
 
-// Default Pi address on Android hotspot (phone acts as gateway at .43.1)
-let piUrl = 'http://192.168.43.1:8081';
+// Default Pi address: Pi is assigned static IP 192.168.43.100 on the phone hotspot
+// (Note: 192.168.43.1 is the phone's own gateway address — NOT the Pi)
+let piUrl = 'http://192.168.43.100:8081';
 
 // Failure tracking
 let consecutiveFailures = 0;
@@ -165,17 +166,21 @@ export function getConsecutiveFailures(): number {
  * Check if Pi GPS receiver is reachable.
  */
 export async function checkPiConnection(): Promise<{ connected: boolean; data?: any }> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
     try {
         const response = await fetch(`${piUrl}/health`, {
             method: 'GET',
-            signal: AbortSignal.timeout(3000),
+            signal: controller.signal,
         });
+        clearTimeout(timer);
         if (response.ok) {
             const data = await response.json();
             return { connected: true, data };
         }
         return { connected: false };
     } catch {
+        clearTimeout(timer);
         return { connected: false };
     }
 }

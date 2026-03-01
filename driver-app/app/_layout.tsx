@@ -89,6 +89,7 @@ export default function RootLayout() {
         <Stack.Screen name="register" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="trip/[id]" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="admin" options={{ animation: 'slide_from_bottom' }} />
       </Stack>
     </View>
   );

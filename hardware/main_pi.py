@@ -74,23 +74,58 @@ data_manager = DataManager(SERVER_URL, API_KEY)
 def register_bus_with_backend():
     """
     Register this bus with the backend at startup.
-    Returns the backend-assigned integer bus ID.
+    Retries up to 5 times with exponential backoff (3s, 6s, 12s, 24s, 48s).
+    If all retries fail, a background thread keeps retrying every 30 seconds.
+    Returns the backend-assigned integer bus ID (or None if offline).
     """
     global BUS_ID
     headers = {'X-API-Key': API_KEY, 'Content-Type': 'application/json'}
     payload = {'registration_number': BUS_REGISTRATION}
-    try:
-        # Try to register (may already exist — 409 is fine)
-        resp = requests.post(f"{SERVER_URL}/api/buses", json=payload,
-                             headers=headers, timeout=5)
-        if resp.status_code in (200, 201, 409):
-            data = resp.json()
-            # 201 → data['bus']['id'], 409 → data['bus']['id']
-            BUS_ID = data.get('bus', {}).get('id')
-            print(f"🚌 Bus registered: {BUS_REGISTRATION} → backend ID {BUS_ID}")
+
+    def _attempt():
+        """Single registration attempt. Returns id on success, None on failure."""
+        try:
+            resp = requests.post(f"{SERVER_URL}/api/buses", json=payload,
+                                 headers=headers, timeout=5)
+            if resp.status_code in (200, 201, 409):
+                data = resp.json()
+                bid = data.get('bus', {}).get('id')
+                return bid
+        except Exception as e:
+            print(f"  ↳ Registration attempt failed: {e}")
+        return None
+
+    # --- Immediate retry loop (up to 5 attempts) ---
+    wait = 3
+    for attempt in range(1, 6):
+        print(f"🚌 Registering bus (attempt {attempt}/5): {BUS_REGISTRATION}")
+        bid = _attempt()
+        if bid:
+            BUS_ID = bid
+            print(f"✅ Bus registered: {BUS_REGISTRATION} → backend ID {BUS_ID}")
             return BUS_ID
-    except Exception as e:
-        print(f"⚠️ Could not register bus with backend: {e}")
+        if attempt < 5:
+            print(f"   Retrying in {wait}s…")
+            time.sleep(wait)
+            wait *= 2  # Exponential backoff
+
+    print("⚠️  Could not register bus after 5 attempts. "
+          "Location updates will be skipped until registration succeeds.")
+    print("   A background thread will keep retrying every 30 s.\n")
+
+    # --- Background retry thread ---
+    def _background_retry():
+        global BUS_ID
+        while BUS_ID is None:
+            time.sleep(30)
+            print("🔄 Background: retrying bus registration…")
+            bid = _attempt()
+            if bid:
+                BUS_ID = bid
+                print(f"✅ Background: bus registered → ID {BUS_ID}")
+
+    t = threading.Thread(target=_background_retry, daemon=True)
+    t.start()
     return None
 
 
@@ -188,6 +223,17 @@ def main():
     print("="*60)
     print(f"Server: {SERVER_URL}")
     print(f"Bus: {BUS_REGISTRATION}")
+
+    # --- Startup validation ---
+    if 'localhost' in SERVER_URL or '127.0.0.1' in SERVER_URL:
+        print("\n" + "!"*60)
+        print("⚠️  WARNING: SERVER_URL points to localhost!")
+        print(f"   Current value: {SERVER_URL}")
+        print("   This will NOT work on the Raspberry Pi.")
+        print("   Set SERVER_URL in your .env file to the machine")
+        print("   running the Flask backend, e.g.:")
+        print("     SERVER_URL=http://192.168.43.XXX:5000")
+        print("!"*60 + "\n")
     
     # Initialize sensors
     print("\nInitializing sensors...")

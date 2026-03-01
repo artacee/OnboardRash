@@ -3,7 +3,7 @@
  * staggered animations, and haptic feedback.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View,
     Text,
@@ -11,6 +11,7 @@ import {
     ScrollView,
     Alert,
     RefreshControl,
+    Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -153,6 +154,23 @@ export default function ProfileScreen() {
     const driver = profile?.driver;
     const stats = profile?.stats;
 
+    // ─── Hidden admin triple-tap on version text ─────────
+    const tapCountRef = useRef(0);
+    const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleVersionTap = () => {
+        tapCountRef.current += 1;
+        if (tapCountRef.current >= 3) {
+            tapCountRef.current = 0;
+            if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            router.push('/admin');
+            return;
+        }
+        if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+        tapTimerRef.current = setTimeout(() => { tapCountRef.current = 0; }, 800);
+    };
+
     // Loading state
     if (initialLoading) {
         return (
@@ -294,7 +312,7 @@ export default function ProfileScreen() {
                         <SectionLabel text="Connection Settings" dotColor={SECTION_DOT_COLORS.profile} />
                         <GlassInput
                             label="Pi Address"
-                            placeholder="http://192.168.43.1:8081"
+                            placeholder="http://192.168.43.100:8081"
                             value={piAddress}
                             onChangeText={setPiAddress}
                             autoCapitalize="none"
@@ -302,7 +320,7 @@ export default function ProfileScreen() {
                         />
                         <GlassInput
                             label="Backend Server"
-                            placeholder="http://192.168.1.40:5000"
+                            placeholder="http://192.168.43.2:5000"
                             value={serverUrl}
                             onChangeText={setServerUrl}
                             autoCapitalize="none"
@@ -328,7 +346,9 @@ export default function ProfileScreen() {
                     </View>
                 </AnimatedEntry>
 
-                <Text style={styles.version}>OnboardRash Driver v1.0.0</Text>
+                <Pressable onPress={handleVersionTap}>
+                    <Text style={styles.version}>OnboardRash Driver v1.0.0</Text>
+                </Pressable>
                 <View style={{ height: 100 }} />
             </ScrollView>
         </SafeAreaView>

@@ -22,7 +22,8 @@ import type {
 
 // ─── Configuration ─────────────────────────────────────
 
-const DEFAULT_API_URL = 'http://192.168.1.35:5000';
+// Default backend URL when using phone hotspot — laptop typically gets 192.168.43.2
+const DEFAULT_API_URL = 'http://192.168.43.2:5000';
 const REQUEST_TIMEOUT_MS = 15_000;
 
 let apiUrl = DEFAULT_API_URL;
@@ -247,4 +248,88 @@ export interface TripDetailResponse {
 
 export async function getTripDetail(tripId: number): Promise<TripDetailResponse> {
     return apiFetch<TripDetailResponse>(`/api/drivers/me/trips/${tripId}`);
+}
+
+// ─── Admin Bypass (Direct-to-Backend IoT endpoints) ────
+
+/**
+ * Inject a driving event directly to the backend, bypassing the Raspberry Pi.
+ * Uses the unauthenticated IoT endpoint POST /api/events.
+ */
+export async function injectEvent(payload: {
+    bus_id: number;
+    event_type: string;
+    severity: string;
+    acceleration_x: number;
+    acceleration_y: number;
+    acceleration_z: number;
+    speed: number;
+    location: { lat: number; lng: number };
+}): Promise<any> {
+    const res = await fetch(`${apiUrl}/api/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, timestamp: new Date().toISOString() }),
+    });
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Request failed' }));
+        throw new Error(data.error || `HTTP ${res.status}`);
+    }
+    return res.json();
+}
+
+/**
+ * Update a bus's GPS location directly on the backend, bypassing the Pi.
+ * Uses the unauthenticated IoT endpoint POST /api/buses/:id/location.
+ */
+export async function updateBusLocation(
+    busId: number,
+    lat: number,
+    lng: number,
+    speed: number | null,
+    heading: number | null,
+): Promise<any> {
+    const res = await fetch(`${apiUrl}/api/buses/${busId}/location`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lat, lng, speed, heading }),
+    });
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Request failed' }));
+        throw new Error(data.error || `HTTP ${res.status}`);
+    }
+    return res.json();
+}
+
+/**
+ * Reset (delete) all driving events in the backend database.
+ * Uses DELETE /api/events/reset.
+ */
+export async function resetEvents(): Promise<{ message: string; deleted: number }> {
+    const res = await fetch(`${apiUrl}/api/events/reset`, { method: 'DELETE' });
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Request failed' }));
+        throw new Error(data.error || `HTTP ${res.status}`);
+    }
+    return res.json();
+}
+
+/**
+ * Check if the backend server is reachable.
+ * Hits GET /api/stats as a lightweight health probe.
+ */
+export async function checkBackendHealth(): Promise<boolean> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    try {
+        const res = await fetch(`${apiUrl}/api/stats`, {
+            method: 'GET',
+            signal: controller.signal,
+        });
+        return res.ok;
+    } catch {
+        return false;
+    } finally {
+        clearTimeout(timeout);
+    }
 }

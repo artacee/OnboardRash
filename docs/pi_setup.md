@@ -196,12 +196,15 @@ sudo systemctl start rash-detection.service
 
 ### First Time Setup
 1. Enable **Mobile Hotspot** on the phone (driver's hotspot).
-2. Connect the Raspberry Pi to this hotspot via `wpa_supplicant.conf`.
-3. Open **Expo Go** → scan QR from `npx expo start`.
-4. Register an account on the onboarding screen.
-5. In **Profile → Connection Settings**, verify:
-   - **Pi Address**: `http://192.168.43.1:8081` (Android hotspot gateway)
+2. Connect the Raspberry Pi to this hotspot via `wpa_supplicant.conf` (see below).
+3. **Assign the Pi a static IP** on the hotspot network (see below — required!).
+4. Open **Expo Go** → scan QR from `npx expo start`.
+5. Register an account on the onboarding screen.
+6. In **Profile → Connection Settings**, verify:
+   - **Pi Address**: `http://192.168.43.100:8081` (Pi's static IP on hotspot)
    - **Backend Server**: `http://<LAPTOP_IP>:5000`
+
+> ⚠️ **Important:** `192.168.43.1` is the **phone's own gateway address** — do NOT use that as the Pi URL. The Pi needs its own static IP on the hotspot subnet.
 
 ### Connect Pi to Phone Hotspot
 
@@ -216,6 +219,31 @@ network={
     key_mgmt=WPA-PSK
 }
 ```
+
+### Assign Pi a Static IP on the Hotspot
+
+Without a static IP, the Pi gets a random DHCP address and the app won't know where to connect. Fix this by telling the Pi to always use `192.168.43.100` on the phone's hotspot (`192.168.43.x` subnet):
+
+```bash
+sudo nano /etc/dhcpcd.conf
+```
+
+Add at the **end** of the file:
+```
+# Static IP for OnboardRash phone hotspot
+interface wlan0
+static ip_address=192.168.43.100/24
+static routers=192.168.43.1
+static domain_name_servers=8.8.8.8
+```
+
+```bash
+sudo systemctl restart dhcpcd
+# Reconnect to hotspot and verify:
+hostname -I   # Should show 192.168.43.100
+```
+
+After this, the phone app's default **Pi Address** (`http://192.168.43.100:8081`) will always work without manual configuration.
 
 ### Running the App
 
@@ -266,7 +294,7 @@ Dashboard at `http://localhost:5173`. Requires backend running at port 5000.
 | **"Waiting for phone app to connect"** | Phone isn't sending GPS yet — ensure app is on Home tab with trip started |
 | **Pi can't reach backend** | Check `SERVER_URL` in `.env` matches laptop's hotspot IP (not LAN IP if using hotspot) |
 | **App can't reach backend** | In Profile → Backend Server, update to laptop's current WiFi IP |
-| **App → Pi connection fails** | Android hotspot gateway is always `192.168.43.1` — verify Pi is connected to hotspot |
+| **App → Pi connection fails** | `192.168.43.1` is the **phone's gateway** — the Pi needs a static IP (`192.168.43.100`). Follow the "Assign Pi a Static IP" section above. In Profile settings use `http://192.168.43.100:8081` |
 | **I2C Error (MPU-6050)** | Run `i2cdetect -y 1` — you should see `68`. Check SDA/SCL wiring |
 | **Camera Error** | Run `ls /dev/video*` — should show `/dev/video0`. Try a different USB port (use blue USB 3.0). |
 | **GPS showing `None`** | Trip must be **started** in app before GPS streams to Pi |

@@ -61,7 +61,8 @@ export function GradientTitle({
                 fontSize={fontSize}
                 fontWeight={fontWeight}
                 letterSpacing={letterSpacing}
-                x="0"
+                textAnchor="middle"
+                x={estimatedWidth / 2}
                 y={fontSize}
             >
                 {text}
