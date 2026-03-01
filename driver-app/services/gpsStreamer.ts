@@ -9,11 +9,17 @@
 
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
+import * as SecureStore from 'expo-secure-store';
 
 const GPS_TASK_NAME = 'ONBOARDRASH_GPS_STREAM';
 
 // Default Pi address on Android hotspot (phone acts as gateway at .43.1)
 let piUrl = 'http://192.168.43.1:8081';
+
+// Failure tracking
+let consecutiveFailures = 0;
+const MAX_FAILURES_BEFORE_WARNING = 10;
+let onStreamError: ((failures: number) => void) | null = null;
 
 export function setPiUrl(url: string) {
     piUrl = url;
@@ -21,6 +27,23 @@ export function setPiUrl(url: string) {
 
 export function getPiUrl() {
     return piUrl;
+}
+
+/** Load persisted Pi URL from SecureStore on startup. */
+export async function initPiUrl() {
+    const stored = await SecureStore.getItemAsync('pi_url');
+    if (stored) piUrl = stored;
+}
+
+/** Persist the Pi URL to SecureStore. */
+export async function persistPiUrl(url: string) {
+    piUrl = url;
+    await SecureStore.setItemAsync('pi_url', url);
+}
+
+/** Register a callback for when GPS streaming encounters repeated failures. */
+export function setStreamErrorCallback(cb: ((failures: number) => void) | null) {
+    onStreamError = cb;
 }
 
 // ─── Background Task Definition ────────────────────────
@@ -36,6 +59,11 @@ TaskManager.defineTask(GPS_TASK_NAME, async ({ data, error }: any) => {
         const loc = locations[0];
 
         if (!loc) return;
+
+        // Filter out low-accuracy readings (> 50m)
+        if (loc.coords.accuracy !== null && loc.coords.accuracy > 50) {
+            return;
+        }
 
         const payload = {
             latitude: loc.coords.latitude,
@@ -53,8 +81,12 @@ TaskManager.defineTask(GPS_TASK_NAME, async ({ data, error }: any) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
+            consecutiveFailures = 0; // Reset on success
         } catch {
-            // Silently fail if Pi unreachable — will retry on next tick
+            consecutiveFailures++;
+            if (consecutiveFailures === MAX_FAILURES_BEFORE_WARNING && onStreamError) {
+                onStreamError(consecutiveFailures);
+            }
         }
     }
 });
@@ -77,6 +109,8 @@ export async function startGPSStream(): Promise<boolean> {
     const isRunning = await Location.hasStartedLocationUpdatesAsync(GPS_TASK_NAME);
     if (isRunning) return true;
 
+    consecutiveFailures = 0;
+
     await Location.startLocationUpdatesAsync(GPS_TASK_NAME, {
         accuracy: Location.Accuracy.BestForNavigation,
         timeInterval: 500,          // 2Hz
@@ -98,10 +132,15 @@ export async function stopGPSStream(): Promise<void> {
     if (isRunning) {
         await Location.stopLocationUpdatesAsync(GPS_TASK_NAME);
     }
+    consecutiveFailures = 0;
 }
 
 export async function isStreaming(): Promise<boolean> {
     return Location.hasStartedLocationUpdatesAsync(GPS_TASK_NAME);
+}
+
+export function getConsecutiveFailures(): number {
+    return consecutiveFailures;
 }
 
 /**

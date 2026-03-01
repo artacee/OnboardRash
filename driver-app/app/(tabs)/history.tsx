@@ -1,5 +1,5 @@
 /**
- * History Screen — Trip history with staggered animations and haptics.
+ * History Screen — Trip history with staggered animations, haptics, and trip detail navigation.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -10,25 +10,37 @@ import {
     ScrollView,
     RefreshControl,
     TouchableOpacity,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import { useRouter } from 'expo-router';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { GlassButton } from '@/components/ui/GlassButton';
 import { AnimatedEntry } from '@/components/ui/AnimatedEntry';
 import { theme } from '@/constants/theme';
 import * as api from '@/services/api';
+import type { Trip } from '@/types';
 
 export default function HistoryScreen() {
-    const [trips, setTrips] = useState<any[]>([]);
+    const router = useRouter();
+    const [trips, setTrips] = useState<Trip[]>([]);
     const [refreshing, setRefreshing] = useState(false);
+    const [initialLoading, setInitialLoading] = useState(true);
+    const [fetchError, setFetchError] = useState<string | null>(null);
 
     const fetchTrips = useCallback(async () => {
         try {
             const data = await api.getTrips();
             setTrips(data.trips || []);
-        } catch { }
+            setFetchError(null);
+        } catch (err: any) {
+            setFetchError(err.message || 'Failed to load trips');
+        } finally {
+            setInitialLoading(false);
+        }
     }, []);
 
     useEffect(() => { fetchTrips(); }, []);
@@ -88,8 +100,33 @@ export default function HistoryScreen() {
                     </View>
                 </AnimatedEntry>
 
-                {/* Trip List */}
-                {trips.length === 0 ? (
+                {/* Loading State */}
+                {initialLoading && (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color={theme.colors.textTertiary} />
+                        <Text style={styles.loadingText}>Loading trips...</Text>
+                    </View>
+                )}
+
+                {/* Error State */}
+                {fetchError && !initialLoading && trips.length === 0 && (
+                    <AnimatedEntry delay={100}>
+                        <GlassCard tier={1} style={styles.errorCard}>
+                            <Ionicons name="cloud-offline-outline" size={48} color={theme.colors.danger} />
+                            <Text style={styles.errorTitle}>Failed to load trips</Text>
+                            <Text style={styles.errorSubtext}>{fetchError}</Text>
+                            <GlassButton
+                                title="Retry"
+                                onPress={() => { setInitialLoading(true); fetchTrips(); }}
+                                variant="primary"
+                                style={{ marginTop: theme.spacing.base }}
+                            />
+                        </GlassCard>
+                    </AnimatedEntry>
+                )}
+
+                {/* Empty State */}
+                {!initialLoading && !fetchError && trips.length === 0 && (
                     <AnimatedEntry delay={100}>
                         <GlassCard tier={1} style={styles.emptyCard}>
                             <Ionicons name="time-outline" size={48} color={theme.colors.textQuaternary} />
@@ -99,14 +136,20 @@ export default function HistoryScreen() {
                             </Text>
                         </GlassCard>
                     </AnimatedEntry>
-                ) : (
+                )}
+
+                {/* Trip List */}
+                {!initialLoading && trips.length > 0 &&
                     trips.map((trip, index) => {
                         const scoreColor = getScoreColor(trip.score);
                         return (
                             <AnimatedEntry key={trip.id} delay={100 + index * 80}>
                                 <TouchableOpacity
                                     activeOpacity={0.7}
-                                    onPress={() => Haptics.selectionAsync()}
+                                    onPress={() => {
+                                        Haptics.selectionAsync();
+                                        router.push(`/trip/${trip.id}` as any);
+                                    }}
                                 >
                                     <GlassCard tier={1} style={styles.tripCard}>
                                         {/* Top row */}
@@ -166,7 +209,7 @@ export default function HistoryScreen() {
                             </AnimatedEntry>
                         );
                     })
-                )}
+                }
 
                 <View style={{ height: 100 }} />
             </ScrollView>
@@ -211,6 +254,33 @@ const styles = StyleSheet.create({
         fontSize: theme.fontSize.callout,
         fontWeight: theme.fontWeight.body,
         color: theme.colors.textQuaternary,
+    },
+    loadingContainer: {
+        alignItems: 'center',
+        paddingVertical: theme.spacing['3xl'],
+        gap: theme.spacing.base,
+    },
+    loadingText: {
+        fontFamily: theme.fonts.body,
+        fontSize: theme.fontSize.body,
+        color: theme.colors.textTertiary,
+    },
+    errorCard: {
+        alignItems: 'center',
+        paddingVertical: theme.spacing['3xl'],
+        gap: theme.spacing.md,
+    },
+    errorTitle: {
+        fontFamily: theme.fonts.headline,
+        fontSize: theme.fontSize.title3,
+        fontWeight: theme.fontWeight.headline,
+        color: theme.colors.textPrimary,
+    },
+    errorSubtext: {
+        fontFamily: theme.fonts.body,
+        fontSize: theme.fontSize.callout,
+        color: theme.colors.textTertiary,
+        textAlign: 'center',
     },
     tripCard: { marginBottom: theme.spacing.md },
     tripHeader: {

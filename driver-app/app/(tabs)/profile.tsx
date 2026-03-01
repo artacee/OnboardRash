@@ -11,6 +11,7 @@ import {
     ScrollView,
     Alert,
     RefreshControl,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -30,7 +31,7 @@ import { GlassInput } from '@/components/ui/GlassInput';
 import { AnimatedEntry } from '@/components/ui/AnimatedEntry';
 import { theme } from '@/constants/theme';
 import * as api from '@/services/api';
-import { setPiUrl, getPiUrl } from '@/services/gpsStreamer';
+import { setPiUrl, getPiUrl, persistPiUrl } from '@/services/gpsStreamer';
 
 // ═══ Rotating Gradient Avatar Ring ═══
 
@@ -96,6 +97,8 @@ export default function ProfileScreen() {
     const router = useRouter();
     const [profile, setProfile] = useState<any>(null);
     const [refreshing, setRefreshing] = useState(false);
+    const [initialLoading, setInitialLoading] = useState(true);
+    const [fetchError, setFetchError] = useState<string | null>(null);
     const [piAddress, setPiAddress] = useState(getPiUrl());
     const [serverUrl, setServerUrl] = useState(api.getApiUrl());
 
@@ -103,7 +106,12 @@ export default function ProfileScreen() {
         try {
             const data = await api.getProfile();
             setProfile(data);
-        } catch { }
+            setFetchError(null);
+        } catch (err: any) {
+            setFetchError(err.message || 'Failed to load profile');
+        } finally {
+            setInitialLoading(false);
+        }
     }, []);
 
     useEffect(() => { fetchProfile(); }, []);
@@ -130,15 +138,49 @@ export default function ProfileScreen() {
         ]);
     };
 
-    const handleSaveSettings = () => {
+    const handleSaveSettings = async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setPiUrl(piAddress);
-        api.setApiUrl(serverUrl);
-        Alert.alert('Settings Saved', 'Connection settings updated.');
+        // Persist to SecureStore so settings survive app restarts
+        await persistPiUrl(piAddress);
+        await api.persistApiUrl(serverUrl);
+        Alert.alert('Settings Saved', 'Connection settings updated and persisted.');
     };
 
     const driver = profile?.driver;
     const stats = profile?.stats;
+
+    // Loading state
+    if (initialLoading) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={theme.colors.textTertiary} />
+                    <Text style={styles.loadingText}>Loading profile...</Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    // Error state (when no profile loaded)
+    if (fetchError && !profile) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.errorContainer}>
+                    <GlassCard tier={1} style={styles.errorCard}>
+                        <Ionicons name="cloud-offline-outline" size={48} color={theme.colors.danger} />
+                        <Text style={styles.errorTitle}>Connection Error</Text>
+                        <Text style={styles.errorSubtext}>{fetchError}</Text>
+                        <GlassButton
+                            title="Retry"
+                            onPress={() => { setInitialLoading(true); fetchProfile(); }}
+                            variant="primary"
+                            style={{ marginTop: theme.spacing.base }}
+                        />
+                    </GlassCard>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.container}>
@@ -263,6 +305,40 @@ const styles = StyleSheet.create({
     scrollContent: {
         paddingHorizontal: theme.spacing.xl,
         paddingTop: theme.spacing.base,
+    },
+    loadingContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: theme.spacing.base,
+    },
+    loadingText: {
+        fontFamily: theme.fonts.body,
+        fontSize: theme.fontSize.body,
+        color: theme.colors.textTertiary,
+    },
+    errorContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: theme.spacing.xl,
+    },
+    errorCard: {
+        alignItems: 'center',
+        paddingVertical: theme.spacing['3xl'],
+        gap: theme.spacing.md,
+    },
+    errorTitle: {
+        fontFamily: theme.fonts.title,
+        fontSize: theme.fontSize.title3,
+        fontWeight: theme.fontWeight.title,
+        color: theme.colors.textPrimary,
+    },
+    errorSubtext: {
+        fontFamily: theme.fonts.body,
+        fontSize: theme.fontSize.callout,
+        color: theme.colors.textTertiary,
+        textAlign: 'center',
     },
     header: { marginBottom: theme.spacing.xl },
     title: {

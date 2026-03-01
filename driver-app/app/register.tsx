@@ -1,5 +1,6 @@
 /**
  * Register Screen — Driver account creation.
+ * Inline validation via GlassInput error prop + differentiated server errors.
  */
 
 import React, { useState } from 'react';
@@ -12,10 +13,19 @@ import { GlassInput } from '@/components/ui/GlassInput';
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/services/api';
+import { ApiError } from '@/services/api';
+
+interface FormState {
+    full_name: string;
+    username: string;
+    password: string;
+    phone_number: string;
+    license_number: string;
+}
 
 export default function RegisterScreen() {
     const router = useRouter();
-    const [form, setForm] = useState({
+    const [form, setForm] = useState<FormState>({
         full_name: '',
         username: '',
         password: '',
@@ -23,21 +33,25 @@ export default function RegisterScreen() {
         license_number: '',
     });
     const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
 
-    const updateField = (key: string, value: string) => {
+    const updateField = (key: keyof FormState, value: string) => {
         setForm(prev => ({ ...prev, [key]: value }));
+        setErrors(prev => ({ ...prev, [key]: undefined }));
+    };
+
+    const validate = (): boolean => {
+        const newErrors: typeof errors = {};
+        if (!form.full_name.trim()) newErrors.full_name = 'Full name is required';
+        if (!form.username.trim()) newErrors.username = 'Username is required';
+        if (!form.password) newErrors.password = 'Password is required';
+        else if (form.password.length < 4) newErrors.password = 'Must be at least 4 characters';
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
     };
 
     const handleRegister = async () => {
-        if (!form.full_name.trim() || !form.username.trim() || !form.password) {
-            Alert.alert('Error', 'Name, username, and password are required');
-            return;
-        }
-
-        if (form.password.length < 4) {
-            Alert.alert('Error', 'Password must be at least 4 characters');
-            return;
-        }
+        if (!validate()) return;
 
         setLoading(true);
         try {
@@ -50,7 +64,17 @@ export default function RegisterScreen() {
             });
             router.replace('/(tabs)/home');
         } catch (err: any) {
-            Alert.alert('Registration Failed', err.message || 'Could not create account');
+            if (err instanceof ApiError) {
+                if (err.status === 409) {
+                    setErrors({ username: 'Username already taken' });
+                } else if (err.status === 0) {
+                    Alert.alert('Connection Error', err.message);
+                } else {
+                    Alert.alert('Registration Failed', err.message);
+                }
+            } else {
+                Alert.alert('Registration Failed', err.message || 'Could not create account');
+            }
         } finally {
             setLoading(false);
         }
@@ -88,6 +112,7 @@ export default function RegisterScreen() {
                             value={form.full_name}
                             onChangeText={v => updateField('full_name', v)}
                             autoComplete="name"
+                            error={errors.full_name}
                         />
 
                         <GlassInput
@@ -97,6 +122,7 @@ export default function RegisterScreen() {
                             onChangeText={v => updateField('username', v)}
                             autoCapitalize="none"
                             autoComplete="username"
+                            error={errors.username}
                         />
 
                         <GlassInput
@@ -105,6 +131,7 @@ export default function RegisterScreen() {
                             value={form.password}
                             onChangeText={v => updateField('password', v)}
                             secureTextEntry
+                            error={errors.password}
                         />
 
                         <GlassInput

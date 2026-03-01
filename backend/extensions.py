@@ -4,3 +4,5 @@ from flask_socketio import SocketIO
 # Initialize extensions
 db = SQLAlchemy()
 socketio = SocketIO(cors_allowed_origins="*", async_mode='threading')
+socketio = SocketIO(cors_allowed_origins="*", async_mode='eventlet')
+jwt = JWTManager()

@@ -1,5 +1,6 @@
 /**
  * Login Screen — Frosted glass card with username/password.
+ * Inline validation via GlassInput error prop + differentiated server errors.
  */
 
 import React, { useState } from 'react';
@@ -12,25 +13,43 @@ import { GlassInput } from '@/components/ui/GlassInput';
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '@/services/api';
+import { ApiError } from '@/services/api';
 
 export default function LoginScreen() {
     const router = useRouter();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
+
+    const validate = (): boolean => {
+        const newErrors: typeof errors = {};
+        if (!username.trim()) newErrors.username = 'Username is required';
+        if (!password) newErrors.password = 'Password is required';
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
 
     const handleLogin = async () => {
-        if (!username.trim() || !password) {
-            Alert.alert('Error', 'Please enter username and password');
-            return;
-        }
+        if (!validate()) return;
 
         setLoading(true);
+        setErrors({});
         try {
             await api.login(username.trim(), password);
             router.replace('/(tabs)/home');
         } catch (err: any) {
-            Alert.alert('Login Failed', err.message || 'Invalid credentials');
+            if (err instanceof ApiError) {
+                if (err.status === 401) {
+                    Alert.alert('Login Failed', 'Invalid username or password.');
+                } else if (err.status === 0) {
+                    Alert.alert('Connection Error', err.message);
+                } else {
+                    Alert.alert('Server Error', err.message);
+                }
+            } else {
+                Alert.alert('Login Failed', err.message || 'Something went wrong.');
+            }
         } finally {
             setLoading(false);
         }
@@ -63,18 +82,20 @@ export default function LoginScreen() {
                             label="Username"
                             placeholder="Enter your username"
                             value={username}
-                            onChangeText={setUsername}
+                            onChangeText={(v) => { setUsername(v); setErrors(e => ({ ...e, username: undefined })); }}
                             autoCapitalize="none"
                             autoComplete="username"
+                            error={errors.username}
                         />
 
                         <GlassInput
                             label="Password"
                             placeholder="Enter your password"
                             value={password}
-                            onChangeText={setPassword}
+                            onChangeText={(v) => { setPassword(v); setErrors(e => ({ ...e, password: undefined })); }}
                             secureTextEntry
                             autoComplete="password"
+                            error={errors.password}
                         />
 
                         <GlassButton

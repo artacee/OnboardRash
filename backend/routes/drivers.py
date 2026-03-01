@@ -14,6 +14,7 @@ Endpoints:
 from flask import Blueprint, request, jsonify
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 
 from extensions import db
 from models import Driver, Trip, Bus, DrivingEvent
@@ -32,8 +33,22 @@ SEVERITY_PENALTIES = {
 
 # ==================== AUTH HELPERS ====================
 
-def get_driver_from_header():
-    """Extract driver from X-Driver-Id header (simple auth for college project)."""
+def get_current_driver():
+    """Get authenticated driver from JWT token or legacy X-Driver-Id header."""
+    # Try JWT first
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        try:
+            from flask_jwt_extended import decode_token
+            token = auth_header.split(' ', 1)[1]
+            decoded = decode_token(token)
+            driver_id = decoded.get('sub')
+            if driver_id:
+                return Driver.query.get(int(driver_id))
+        except Exception:
+            return None
+    
+    # Fallback to X-Driver-Id header (backward compat for Pi/legacy clients)
     driver_id = request.headers.get('X-Driver-Id')
     if not driver_id:
         return None
@@ -79,9 +94,13 @@ def register():
     db.session.add(driver)
     db.session.commit()
     
+    # Issue JWT token on registration
+    token = create_access_token(identity=str(driver.id))
+    
     return jsonify({
         'status': 'success',
         'driver': driver.to_dict(),
+        'token': token,
     }), 201
 
 
@@ -100,9 +119,13 @@ def login():
     if not driver or not check_password_hash(driver.password_hash, password):
         return jsonify({'error': 'Invalid username or password'}), 401
     
+    # Issue JWT token on login
+    token = create_access_token(identity=str(driver.id))
+    
     return jsonify({
         'status': 'success',
         'driver': driver.to_dict(),
+        'token': token,
     })
 
 
@@ -111,7 +134,7 @@ def login():
 @drivers_bp.route('/me', methods=['GET'])
 def get_profile():
     """Get current driver's profile."""
-    driver = get_driver_from_header()
+    driver = get_current_driver()
     if not driver:
         return jsonify({'error': 'Driver not authenticated'}), 401
     
@@ -144,7 +167,7 @@ def get_profile():
 @drivers_bp.route('/me/events', methods=['GET'])
 def get_my_events():
     """Get events for the driver's active trip or recent bus events."""
-    driver = get_driver_from_header()
+    driver = get_current_driver()
     if not driver:
         return jsonify({'error': 'Driver not authenticated'}), 401
     
@@ -181,7 +204,7 @@ def get_my_events():
 @drivers_bp.route('/me/trip/start', methods=['POST'])
 def start_trip():
     """Start a new driving trip/shift."""
-    driver = get_driver_from_header()
+    driver = get_current_driver()
     if not driver:
         return jsonify({'error': 'Driver not authenticated'}), 401
     
@@ -233,7 +256,7 @@ def start_trip():
 @drivers_bp.route('/me/trip/stop', methods=['POST'])
 def stop_trip():
     """End the current active trip and calculate final score."""
-    driver = get_driver_from_header()
+    driver = get_current_driver()
     if not driver:
         return jsonify({'error': 'Driver not authenticated'}), 401
     
@@ -275,7 +298,7 @@ def stop_trip():
 @drivers_bp.route('/me/trips', methods=['GET'])
 def get_trips():
     """Get trip history for the driver."""
-    driver = get_driver_from_header()
+    driver = get_current_driver()
     if not driver:
         return jsonify({'error': 'Driver not authenticated'}), 401
     
@@ -286,6 +309,35 @@ def get_trips():
     return jsonify({
         'trips': [t.to_dict() for t in trips],
         'count': len(trips),
+    })
+
+
+@drivers_bp.route('/me/trips/<int:trip_id>', methods=['GET'])
+def get_trip_detail(trip_id):
+    """Get a specific trip with its events."""
+    driver = get_current_driver()
+    if not driver:
+        return jsonify({'error': 'Driver not authenticated'}), 401
+
+    trip = Trip.query.filter_by(id=trip_id, driver_id=driver.id).first()
+    if not trip:
+        return jsonify({'error': 'Trip not found'}), 404
+
+    # Fetch events that happened during this trip
+    event_filter = [
+        DrivingEvent.bus_id == trip.bus_id,
+        DrivingEvent.timestamp >= trip.started_at,
+    ]
+    if trip.ended_at:
+        event_filter.append(DrivingEvent.timestamp <= trip.ended_at)
+
+    events = DrivingEvent.query.filter(
+        *event_filter
+    ).order_by(DrivingEvent.timestamp.desc()).all()
+
+    return jsonify({
+        'trip': trip.to_dict(),
+        'events': [e.to_dict() for e in events],
     })
 
 

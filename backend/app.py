@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from functools import wraps
 
 from models import db as models_db # Kept for explicit import chain if needed, but not shadowing
-from extensions import db, socketio
+from extensions import db, socketio, jwt
 
 # Load environment variables
 load_dotenv()
@@ -21,6 +21,14 @@ app = Flask(__name__, static_folder='../frontend/dist', static_url_path='')
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///rash_driving.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# JWT Configuration
+from datetime import timedelta
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', app.config['SECRET_KEY'])
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
+app.config['JWT_TOKEN_LOCATION'] = ['headers']
+app.config['JWT_HEADER_NAME'] = 'Authorization'
+app.config['JWT_HEADER_TYPE'] = 'Bearer'
 
 # Security
 API_KEY = os.getenv('API_KEY', 'default-secure-key-123')
@@ -41,6 +49,7 @@ def require_api_key(f):
 # Initialize extensions
 CORS(app, origins="*")
 db.init_app(app)
+jwt.init_app(app)
 socketio.init_app(app)
 
 # Import and register blueprints
