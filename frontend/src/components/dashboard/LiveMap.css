@@ -242,3 +242,44 @@
         box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
     }
 }
+
+/* ─── VEHICLE TRAIL POLYLINES (Google Maps style) ─── */
+
+/* Raw GPS trail (fallback — visible until road-snapped trail appears) */
+.bus-trail-raw {
+    transition: opacity 1s ease;
+}
+
+/* Road-snapped border (dark outline behind the fill, creates depth) */
+.bus-trail-border {
+    filter: drop-shadow(0 0 3px rgba(30, 64, 175, 0.5));
+}
+
+/* Road-snapped fill (bright blue road overlay — Google Maps style) */
+.bus-trail-snapped {
+    filter: drop-shadow(0 0 8px rgba(74, 144, 255, 0.5))
+            drop-shadow(0 0 2px rgba(59, 130, 246, 0.6));
+}
+
+/* ── Event pip markers ─────────────────────────────────── */
+.event-pip {
+    width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    animation: eventPop .3s ease-out;
+}
+.event-pip-high { background: rgba(239, 68, 68, 0.92); }
+.event-pip-med  { background: rgba(245, 158, 11, 0.92); }
+
+@keyframes eventPop {
+    0%   { transform: scale(0); opacity: 0; }
+    60%  { transform: scale(1.2); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Active state for control island toggle buttons */
+.control-pill-active {
+    background: rgba(74, 144, 255, 0.25) !important;
+    border-color: rgba(74, 144, 255, 0.5) !important;
+}

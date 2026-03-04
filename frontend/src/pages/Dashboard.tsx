@@ -7,7 +7,7 @@
  */
 
 import { motion } from 'framer-motion'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
     Bus,
     CalendarDays,
@@ -19,7 +19,7 @@ import {
 import { StatCard, LiveMap, AlertFeed, QuickActions, SystemHealth } from '@/components/dashboard'
 import { useSocketIO } from '@/hooks'
 import { useAudioAlert } from '@/hooks/useAudioAlert'
-import api, { mapEvent } from '@/services/api'
+import api, { mapEvent, mapBusLocation } from '@/services/api'
 import type { DashboardStats, BusLocation, Event as EventType } from '@/types'
 import './Dashboard.css'
 
@@ -57,6 +57,11 @@ export default function Dashboard() {
     const [events, setEvents] = useState<EventType[]>([])
     const [isLoading, setIsLoading] = useState(true)
 
+    // Track when each bus last sent an update (bus_id → Date.now())
+    // Buses silent for > STALE_MS are removed from the map
+    const busLastSeenRef = useRef<Map<number, number>>(new Map())
+    const STALE_MS = 30_000
+
     const { isConnected, connectionQuality, subscribe } = useSocketIO(
         import.meta.env.VITE_API_URL || window.location.origin
     )
@@ -72,7 +77,15 @@ export default function Dashboard() {
                 api.events.getEvents({ limit: 20, sort: 'desc' })
             ])
             setStats(statsData)
-            setBuses(busData)
+            // Only show buses that have sent a location within the last 30 seconds
+            const now = Date.now()
+            const freshBuses = busData.filter(b => {
+                if (!b.timestamp) return false
+                const age = now - new Date(b.timestamp).getTime()
+                return age <= STALE_MS
+            })
+            freshBuses.forEach(b => busLastSeenRef.current.set(b.bus_id, now))
+            setBuses(freshBuses)
             setEvents(eventsData)
         } catch (err) {
             console.error('Failed to fetch dashboard data:', err)
@@ -119,33 +132,43 @@ export default function Dashboard() {
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const unsubBus = subscribe('bus_update', (data: any) => {
-            // Backend sends { bus_id: ..., lat: ..., ... } OR a list?
-            // Usually it sends a single bus update or full list depending on implementation.
-            // Let's assume it sends a single bus location object for now, 
-            // BUT I need to verify with app.py first.
-            // PROVISIONAL CODE - I will likely need to adjust this after viewing app.py
-
-            // If data is array:
             if (Array.isArray(data)) {
+                const now = Date.now()
+                data.forEach((b: any) => busLastSeenRef.current.set(b.bus_id, now))
                 setBuses(data)
             } else {
-                // If single update
+                // Mark this bus as freshly seen
+                busLastSeenRef.current.set(data.bus_id, Date.now())
                 setBuses(prev => {
-                    const index = prev.findIndex(b => b.bus_id === data.bus_id)
+                    const mapped = mapBusLocation(data)
+                    const index = prev.findIndex(b => b.bus_id === mapped.bus_id)
                     if (index >= 0) {
                         const newBuses = [...prev]
-                        newBuses[index] = { ...newBuses[index], ...data }
+                        newBuses[index] = { ...newBuses[index], ...mapped }
                         return newBuses
                     } else {
-                        return [...prev, data]
+                        return [...prev, mapped]
                     }
                 })
             }
         })
 
+        // Sweep stale buses every 5 seconds
+        const sweepInterval = setInterval(() => {
+            const cutoff = Date.now() - STALE_MS
+            setBuses(prev => {
+                const fresh = prev.filter(b => {
+                    const seen = busLastSeenRef.current.get(b.bus_id) ?? 0
+                    return seen >= cutoff
+                })
+                return fresh.length === prev.length ? prev : fresh
+            })
+        }, 5000)
+
         return () => {
             unsubAlert()
             unsubBus()
+            clearInterval(sweepInterval)
         }
     }, [subscribe, playAlert])
 

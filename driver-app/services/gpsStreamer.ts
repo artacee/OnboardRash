@@ -184,3 +184,46 @@ export async function checkPiConnection(): Promise<{ connected: boolean; data?: 
         return { connected: false };
     }
 }
+
+/**
+ * Notify the Pi that a trip has started — enables event detection on the hardware.
+ * Non-blocking: if the Pi is unreachable, we don't fail the trip start.
+ */
+export async function notifyPiTripStart(): Promise<boolean> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
+    try {
+        const response = await fetch(`${piUrl}/trip/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
+        });
+        clearTimeout(timer);
+        return response.ok;
+    } catch {
+        clearTimeout(timer);
+        console.warn('[GPS] Could not notify Pi of trip start');
+        return false;
+    }
+}
+
+/**
+ * Notify the Pi that the trip has ended — puts event detection on standby.
+ */
+export async function notifyPiTripStop(): Promise<boolean> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
+    try {
+        const response = await fetch(`${piUrl}/trip/stop`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
+        });
+        clearTimeout(timer);
+        return response.ok;
+    } catch {
+        clearTimeout(timer);
+        console.warn('[GPS] Could not notify Pi of trip stop');
+        return false;
+    }
+}

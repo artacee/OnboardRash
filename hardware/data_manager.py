@@ -14,6 +14,7 @@ import threading
 from datetime import datetime
 
 DB_FILE = 'events_queue.db'
+MAX_UPLOAD_ATTEMPTS = 10  # Give up on permanently-failing events
 
 class DataManager:
     """Manages event storage and synchronization."""
@@ -45,6 +46,8 @@ class DataManager:
                     attempts INTEGER DEFAULT 0
                 )
             ''')
+            c.execute('CREATE INDEX IF NOT EXISTS idx_queue_created '
+                      'ON event_queue(created_at)')
             conn.commit()
             conn.close()
             print(f"📦 Local database initialized: {self.db_path}")
@@ -65,9 +68,15 @@ class DataManager:
                     (json.dumps(payload), video_path, snapshot_path)
                 )
                 conn.commit()
-                # Get the queue size
+                # Get the queue size and enforce cap (max 500 events)
                 c.execute("SELECT COUNT(*) FROM event_queue")
                 count = c.fetchone()[0]
+                if count > 500:
+                    c.execute("DELETE FROM event_queue WHERE id = "
+                              "(SELECT id FROM event_queue ORDER BY created_at ASC LIMIT 1)")
+                    conn.commit()
+                    count -= 1
+                    print(f"  ⚠️  Queue cap (500) reached — oldest event dropped")
                 conn.close()
                 print(f"  📥 Event queued locally. Queue size: {count}")
                 return True
@@ -92,18 +101,42 @@ class DataManager:
                     conn.close()
                     
                 if event:
-                    success = self._upload_event(dict(event))
-                    if success:
-                        # Remove from queue
+                    event_dict = dict(event)
+
+                    # Check retry limit
+                    if event_dict.get('attempts', 0) >= MAX_UPLOAD_ATTEMPTS:
+                        print(f"  ⚠️  Dropping event {event_dict['id']} after "
+                              f"{MAX_UPLOAD_ATTEMPTS} failed attempts")
                         with self.lock:
                             conn = sqlite3.connect(self.db_path)
                             c = conn.cursor()
-                            c.execute("DELETE FROM event_queue WHERE id = ?", (event['id'],))
+                            c.execute("DELETE FROM event_queue WHERE id = ?",
+                                      (event_dict['id'],))
                             conn.commit()
                             conn.close()
-                        print(f"  🔄 Synced event {event['id']} from queue")
+                        continue
+
+                    success = self._upload_event(event_dict)
+                    if success:
+                        # Remove from queue and clean up local files
+                        with self.lock:
+                            conn = sqlite3.connect(self.db_path)
+                            c = conn.cursor()
+                            c.execute("DELETE FROM event_queue WHERE id = ?",
+                                      (event_dict['id'],))
+                            conn.commit()
+                            conn.close()
+                        self._cleanup_local_files(event_dict)
+                        print(f"  🔄 Synced event {event_dict['id']} from queue")
                     else:
-                        # Wait before retry if network is down
+                        # Increment attempt counter
+                        with self.lock:
+                            conn = sqlite3.connect(self.db_path)
+                            c = conn.cursor()
+                            c.execute("UPDATE event_queue SET attempts = attempts + 1 "
+                                      "WHERE id = ?", (event_dict['id'],))
+                            conn.commit()
+                            conn.close()
                         time.sleep(5)
                 else:
                     # Queue empty, wait a bit
@@ -112,6 +145,17 @@ class DataManager:
             except Exception as e:
                 print(f"Sync error: {e}")
                 time.sleep(5)
+
+    @staticmethod
+    def _cleanup_local_files(event_row):
+        """Remove local video/snapshot files after successful upload."""
+        for key in ('video_path', 'snapshot_path'):
+            path = event_row.get(key)
+            if path and os.path.isfile(path):
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
 
     def _upload_event(self, event_row):
         """Upload a single event from the queue."""

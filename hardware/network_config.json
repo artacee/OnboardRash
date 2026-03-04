@@ -1,0 +1,8 @@
+{
+    "preferred_ssid": "OnboardRash",
+    "preferred_password": "demo1234",
+    "fallback_ssid_pattern": "Galaxy",
+    "fallback_password": "",
+    "server_port": 5000,
+    "gps_receiver_port": 8081
+}

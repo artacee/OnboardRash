@@ -24,12 +24,29 @@ import type {
 // ─── Configuration ─────────────────────────────────────
 
 /**
- * Auto-detect the backend URL from the Expo dev-server.
- * Expo already knows our laptop's IP (it serves the JS bundle over it).
- * We reuse that same IP and swap the port to 5000 for Flask.
- * Works on any network automatically — no manual IP entry needed.
+ * Resolve the backend URL using multiple strategies (first match wins):
+ *
+ *  1. EXPO_PUBLIC_API_URL env var / extra.apiUrl baked at build time
+ *     → works in production/EAS builds, `expo export`, OTA updates
+ *
+ *  2. Expo dev-server hostUri (Constants.expoConfig.hostUri)
+ *     → works in `npx expo start` / Expo Go during development
+ *
+ *  3. Fallback to localhost (only useful in emulator / web)
+ *
+ * Why the old code didn't work after bundling:
+ *   `hostUri` and `debuggerHost` are injected by the Expo dev-server
+ *   at runtime. Once you bundle (export/EAS), there is no dev-server,
+ *   so both are undefined and the code always fell through to localhost.
  */
 function getDefaultApiUrl(): string {
+    // 1️⃣  Build-time value baked via app.config.ts / EXPO_PUBLIC_API_URL
+    const buildTimeUrl =
+        Constants.expoConfig?.extra?.apiUrl ??
+        process.env.EXPO_PUBLIC_API_URL;
+    if (buildTimeUrl) return buildTimeUrl;
+
+    // 2️⃣  Dev-server auto-detect (only works during `npx expo start`)
     try {
         const debuggerHost =
             Constants.expoConfig?.hostUri ??
@@ -41,6 +58,8 @@ function getDefaultApiUrl(): string {
     } catch (_) {
         // fall through to fallback
     }
+
+    // 3️⃣  Last resort
     return 'http://localhost:5000';
 }
 

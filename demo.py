@@ -17,6 +17,7 @@ import time
 import webbrowser
 import os
 import signal
+import socket
 
 # ─── Configuration ───────────────────────────────────────────
 BACKEND_URL  = os.getenv('BACKEND_URL',  'http://localhost:5000')
@@ -28,6 +29,18 @@ SIMULATOR_SCRIPT = os.path.join(ROOT_DIR, 'simulator', 'simulator.py')
 FRONTEND_DIR     = os.path.join(ROOT_DIR, 'frontend')
 
 # ─── Helpers ─────────────────────────────────────────────────
+
+def get_local_ip():
+    """Return the LAN IP address of this machine."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))        # doesn't actually send data
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return '127.0.0.1'
+
 
 def find_python():
     """Return the Python executable — prefer venv if it exists."""
@@ -179,6 +192,7 @@ def main():
             webbrowser.open(actual_frontend_url)  # fallback to default
 
         # ── Summary ─────────────────────────────────────────
+        lan_ip = get_local_ip()
         print()
         print('=' * 60)
         print('  DEMO IS RUNNING')
@@ -186,6 +200,13 @@ def main():
         print(f'  Frontend  :  {actual_frontend_url}')
         print(f'  Backend   :  {BACKEND_URL}')
         print(f'  Login     :  ajmal / 12345')
+        print()
+        print(f'  Your LAN IP            :  {lan_ip}')
+        print(f'  Phone / Driver App URL :  http://{lan_ip}:5000')
+        print(f'  Raspberry Pi URL       :  http://{lan_ip}:5000')
+        print()
+        print('  Enter the URL above in the driver app and Pi config')
+        print('  to connect them to this backend over your local network.')
         print()
         print('  Press Ctrl+C to stop everything.')
         print('=' * 60)

@@ -7,7 +7,9 @@ Uses a single reader thread to avoid frame access races.
 
 import os
 import time
+import shutil
 import threading
+import collections
 from datetime import datetime
 
 # OpenCV (USB webcam)
@@ -51,15 +53,18 @@ class CameraModule:
 
         self.camera = None
 
-        # Rolling 5-second pre-event buffer
-        self.buffer: list = []
-        self.buffer_seconds = 5
+        # Rolling 2-second pre-event buffer (deque auto-evicts oldest in O(1))
+        self.buffer_seconds = 2
         self.buffer_max_frames = fps * self.buffer_seconds
+        self.buffer = collections.deque(maxlen=self.buffer_max_frames)
 
         # Latest frame — updated by reader thread
         self.current_frame = None
         self._frame_lock = threading.Lock()
         self._reader_running = False
+
+        # Serialize concurrent save_clip calls (second clip waits instead of being skipped)
+        self._save_lock = threading.Lock()
 
         os.makedirs(output_dir, exist_ok=True)
         self._init_camera()
@@ -140,7 +145,7 @@ class CameraModule:
                 if frame is not None:
                     with self._frame_lock:
                         self.current_frame = frame
-                    self._add_to_buffer(frame)
+                        self.buffer.append((time.time(), frame))
                 elapsed = time.time() - t0
                 sleep = interval - elapsed
                 if sleep > 0:
@@ -150,17 +155,12 @@ class CameraModule:
         t.start()
         print("📹 Buffer recording started")
 
-    def _add_to_buffer(self, frame):
-        """Append frame to rolling pre-event buffer."""
-        self.buffer.append((time.time(), frame))
-        while len(self.buffer) > self.buffer_max_frames:
-            self.buffer.pop(0)
-
     # ─── Evidence Saving ─────────────────────────────────────────────────────
 
     def save_clip(self, event_type: str, duration_after: float = 5.0):
         """
-        Save MP4 clip: 5s pre-event buffer + `duration_after` seconds after.
+        Save MP4 clip: 2s pre-event buffer + `duration_after` seconds after.
+        Thread-safe: concurrent calls are serialized (second clip waits for first).
 
         Returns:
             str: Path to saved file, or None on failure.
@@ -168,40 +168,51 @@ class CameraModule:
         if not self.camera or not CV2_AVAILABLE:
             return None
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename  = f"{event_type}_{timestamp}.mp4"
-        filepath  = os.path.join(self.output_dir, filename)
-
-        print(f"📹 Saving clip: {filename}")
-
+        # Disk space check — skip video if < 500 MB free
         try:
-            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-            writer = cv2.VideoWriter(filepath, fourcc, self.fps, self.resolution)
+            if shutil.disk_usage(self.output_dir).free < 500_000_000:
+                print("⚠️  Low disk space — video capture skipped")
+                return None
+        except OSError:
+            pass
 
-            # Write pre-event buffer frames
-            with self._frame_lock:
-                pre_frames = [(ts, f.copy()) for ts, f in self.buffer]
+        with self._save_lock:
+            today = datetime.now().strftime('%Y-%m-%d')
+            day_dir = os.path.join(self.output_dir, today)
+            os.makedirs(day_dir, exist_ok=True)
 
-            for _, frame in pre_frames:
-                writer.write(frame)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename  = f"{event_type}_{timestamp}.mp4"
+            filepath  = os.path.join(day_dir, filename)
 
-            # Record post-event frames from current_frame (reader thread feeds it)
-            frames_after = int(self.fps * duration_after)
-            interval = 1.0 / self.fps
-            for _ in range(frames_after):
-                time.sleep(interval)
+            print(f"📹 Saving clip: {filename}")
+
+            try:
+                fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+                writer = cv2.VideoWriter(filepath, fourcc, self.fps, self.resolution)
+
+                # Write pre-event buffer directly under lock (no frame copy — saves ~158 MB)
                 with self._frame_lock:
-                    frame = self.current_frame
-                if frame is not None:
-                    writer.write(frame)
+                    for _, frame in self.buffer:
+                        writer.write(frame)
 
-            writer.release()
-            print(f"✅ Clip saved: {filepath}")
-            return filepath
+                # Record post-event frames from current_frame (reader thread feeds it)
+                frames_after = int(self.fps * duration_after)
+                interval = 1.0 / self.fps
+                for _ in range(frames_after):
+                    time.sleep(interval)
+                    with self._frame_lock:
+                        frame = self.current_frame
+                    if frame is not None:
+                        writer.write(frame)
 
-        except Exception as e:
-            print(f"Failed to save clip: {e}")
-            return None
+                writer.release()
+                print(f"✅ Clip saved: {filepath}")
+                return filepath
+
+            except Exception as e:
+                print(f"Failed to save clip: {e}")
+                return None
 
     def capture_snapshot(self, event_type: str):
         """
@@ -216,9 +227,21 @@ class CameraModule:
         if frame is None:
             return None
 
+        # Disk space check — skip snapshot if < 50 MB free
+        try:
+            if shutil.disk_usage(self.output_dir).free < 50_000_000:
+                print("⚠️  Low disk space — snapshot skipped")
+                return None
+        except OSError:
+            pass
+
+        today = datetime.now().strftime('%Y-%m-%d')
+        day_dir = os.path.join(self.output_dir, today)
+        os.makedirs(day_dir, exist_ok=True)
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename  = f"{event_type}_{timestamp}.jpg"
-        filepath  = os.path.join(self.output_dir, filename)
+        filepath  = os.path.join(day_dir, filename)
 
         try:
             cv2.imwrite(filepath, frame)

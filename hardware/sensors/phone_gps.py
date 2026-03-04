@@ -34,6 +34,10 @@ class PhoneGPSReceiver:
         self.accuracy = None
         self.last_update = 0
         self._update_count = 0
+
+        # Trip state — controlled by driver app via /trip/start and /trip/stop
+        self.trip_active = False
+        self._trip_start_time = None
         
         self._start_server()
         print(f"📱 Phone GPS Receiver started on port {self.port}")
@@ -76,12 +80,34 @@ class PhoneGPSReceiver:
                 'has_data': self.last_update > 0,
                 'age_seconds': round(age, 1) if age else None,
                 'update_count': self._update_count,
+                'trip_active': self.trip_active,
                 'position': {
                     'lat': self.latitude,
                     'lng': self.longitude,
                     'speed': self.speed,
                 } if self.latitude else None,
             })
+
+        @app.route('/trip/start', methods=['POST'])
+        def trip_start():
+            if self.trip_active:
+                return jsonify({'status': 'already_active'}), 200
+            self.trip_active = True
+            self._trip_start_time = time.time()
+            print("\n🟢 TRIP STARTED (signal from driver app)")
+            print("   Event detection is now ACTIVE.\n")
+            return jsonify({'status': 'started'}), 200
+
+        @app.route('/trip/stop', methods=['POST'])
+        def trip_stop():
+            if not self.trip_active:
+                return jsonify({'status': 'not_active'}), 200
+            self.trip_active = False
+            duration = time.time() - self._trip_start_time if self._trip_start_time else 0
+            self._trip_start_time = None
+            print(f"\n🔴 TRIP ENDED (signal from driver app) — duration: {duration/60:.1f} min")
+            print("   Event detection is now on STANDBY.\n")
+            return jsonify({'status': 'stopped', 'duration_seconds': round(duration)}), 200
         
         thread = threading.Thread(
             target=lambda: app.run(

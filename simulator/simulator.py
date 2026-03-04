@@ -17,7 +17,9 @@ import math
 import requests
 import json
 import os
+import hashlib
 from datetime import datetime
+from pathlib import Path
 
 # Try to load environment variables (optional)
 try:
@@ -32,14 +34,17 @@ SERVER_URL = os.getenv('SERVER_URL', 'http://localhost:5000')
 SIMULATION_INTERVAL = float(os.getenv('SIMULATION_INTERVAL', '2.0'))
 EVENT_PROBABILITY = float(os.getenv('EVENT_PROBABILITY', '0.15'))
 API_KEY = os.getenv('API_KEY', 'default-secure-key-123')
+OSRM_BASE = os.getenv('OSRM_BASE', 'https://router.project-osrm.org')
+ROUTE_CACHE_FILE = Path(__file__).parent / 'cached_routes.json'
 
 # ─── Detection Thresholds (must match main_pi.py) ───────────────────────────
 
-THRESHOLD_HARSH_BRAKE = -1.5       # g-force, triggers HARSH_BRAKE
-THRESHOLD_HARSH_BRAKE_HIGH = -1.8  # g-force, HIGH severity
-THRESHOLD_HARSH_ACCEL = 1.0        # g-force, triggers HARSH_ACCEL
-THRESHOLD_AGGRESSIVE_TURN = 0.8    # g-force Y-axis
-THRESHOLD_AGGRESSIVE_TURN_HIGH = 1.0
+# Bus-realistic g-force thresholds (recalibrated from sports-car values)
+THRESHOLD_HARSH_BRAKE = -0.45      # g-force, triggers HARSH_BRAKE
+THRESHOLD_HARSH_BRAKE_HIGH = -0.6  # g-force, HIGH severity
+THRESHOLD_HARSH_ACCEL = 0.35       # g-force, triggers HARSH_ACCEL
+THRESHOLD_AGGRESSIVE_TURN = 0.4    # g-force Y-axis
+THRESHOLD_AGGRESSIVE_TURN_HIGH = 0.55
 
 # Ultrasonic (cm)
 OVERTAKING_CLOSE_CM = 100          # HIGH severity
@@ -101,6 +106,122 @@ ROUTE_KOLLAM_ALAPPUZHA = [
 ]
 
 
+# ─── OSRM Road-Snap Helpers ─────────────────────────────────────────────────
+
+def _waypoints_hash(waypoints):
+    """Deterministic hash of waypoint list for cache key."""
+    key = json.dumps(waypoints, sort_keys=True)
+    return hashlib.md5(key.encode()).hexdigest()[:12]
+
+
+def _load_route_cache():
+    """Load cached OSRM routes from disk."""
+    if ROUTE_CACHE_FILE.exists():
+        try:
+            with open(ROUTE_CACHE_FILE, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+    return {}
+
+
+def _save_route_cache(cache):
+    """Persist OSRM route cache to disk."""
+    try:
+        with open(ROUTE_CACHE_FILE, 'w') as f:
+            json.dump(cache, f)
+    except IOError as e:
+        print(f"  ⚠️  Could not save route cache: {e}")
+
+
+def fetch_osrm_route(waypoints, route_name="route"):
+    """
+    Fetch a road-snapped route from OSRM for the given waypoints.
+
+    Calls OSRM's /route/v1/driving endpoint with the waypoints.
+    Returns a dense list of (lat, lng) tuples that follow actual roads.
+    Results are cached to disk so subsequent runs don't hit the API.
+
+    Falls back to original sparse waypoints if OSRM is unreachable.
+    """
+    cache_key = _waypoints_hash(waypoints)
+    cache = _load_route_cache()
+
+    # Check cache first
+    if cache_key in cache:
+        coords = [tuple(c) for c in cache[cache_key]]
+        print(f"  📦 Loaded cached OSRM route for {route_name}: {len(coords)} points")
+        return coords
+
+    # Build OSRM coordinate string: lng,lat;lng,lat;...
+    # OSRM uses (longitude, latitude) order
+    coord_str = ";".join(f"{lng},{lat}" for lat, lng in waypoints)
+    url = f"{OSRM_BASE}/route/v1/driving/{coord_str}?overview=full&geometries=geojson&steps=false"
+
+    try:
+        print(f"  🌐 Fetching OSRM route for {route_name}...")
+        resp = requests.get(url, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+
+        if data.get('code') != 'Ok' or not data.get('routes'):
+            print(f"  ⚠️  OSRM returned no route for {route_name}, using sparse waypoints")
+            return list(waypoints)
+
+        # OSRM GeoJSON coordinates are [lng, lat] — flip to (lat, lng)
+        geojson_coords = data['routes'][0]['geometry']['coordinates']
+        dense_coords = [(coord[1], coord[0]) for coord in geojson_coords]
+
+        # Cache to disk
+        cache[cache_key] = dense_coords
+        _save_route_cache(cache)
+
+        print(f"  ✅ OSRM route for {route_name}: {len(dense_coords)} road-snapped points "
+              f"(was {len(waypoints)} sparse waypoints)")
+        return dense_coords
+
+    except requests.RequestException as e:
+        print(f"  ⚠️  OSRM fetch failed for {route_name}: {e}")
+        print(f"       Falling back to {len(waypoints)} sparse waypoints")
+        return list(waypoints)
+
+
+def get_road_snapped_route(waypoints, route_name="route"):
+    """
+    Get a road-snapped route for a looping bus route.
+
+    For looping routes (A→B→C→B→A), we fetch the one-way route and
+    its reverse separately, then concatenate for a smooth loop.
+    This avoids OSRM trying to create a round trip in one request, which
+    can produce weird U-turns.
+    """
+    # Find the midpoint (furthest destination) — typically where the route reverses
+    n = len(waypoints)
+
+    # Try to detect if this is a there-and-back route by checking if later waypoints
+    # match earlier ones (reversed). If so, split and fetch each half.
+    half = n // 2
+    is_loop = n >= 6  # All our routes are loops
+
+    if is_loop:
+        # Forward leg: first half + 1 (include the turnaround point)
+        forward_wps = waypoints[:half + 1]
+        # Return leg: from turnaround back
+        return_wps = waypoints[half:]
+
+        forward = fetch_osrm_route(forward_wps, f"{route_name} (forward)")
+        backward = fetch_osrm_route(return_wps, f"{route_name} (return)")
+
+        # Concatenate, skipping the duplicate midpoint
+        if len(backward) > 1:
+            dense = forward + backward[1:]
+        else:
+            dense = forward + backward
+        return dense
+    else:
+        return fetch_osrm_route(waypoints, route_name)
+
+
 # ─── Bus Simulator ───────────────────────────────────────────────────────────
 
 class BusSimulator:
@@ -111,13 +232,15 @@ class BusSimulator:
         self.registration = registration
         self.route_name = route_name
 
-        # Route waypoints (fixed, loops continuously)
-        self.waypoints = waypoints
+        # Fetch road-snapped dense waypoints via OSRM (cached to disk)
+        self.original_waypoints = waypoints
+        self.waypoints = get_road_snapped_route(waypoints, route_name)
+        self.is_road_snapped = len(self.waypoints) > len(waypoints)
         self.current_wp = 0
 
         # Current position — starts at first waypoint
-        self.lat = waypoints[0][0]
-        self.lng = waypoints[0][1]
+        self.lat = self.waypoints[0][0]
+        self.lng = self.waypoints[0][1]
         self.heading = 0.0
 
         # Speed (km/h) — simulated with smooth Kalman-like drift
@@ -128,29 +251,65 @@ class BusSimulator:
         self.last_event_time = 0
 
     def update_position(self):
-        """Move the bus towards the next waypoint along the fixed route."""
-        target_lat, target_lng = self.waypoints[self.current_wp]
+        """Move the bus towards the next waypoint along the route.
 
-        dlat = target_lat - self.lat
-        dlng = target_lng - self.lng
-        distance = math.sqrt(dlat ** 2 + dlng ** 2)
+        With OSRM road-snapped routes, waypoints are very dense (10-50m apart)
+        so we step through multiple points per tick based on current speed.
+        With sparse fallback waypoints, behaviour is unchanged from before.
+        """
+        if self.is_road_snapped:
+            # Dense road-snapped route: step through multiple points per tick
+            # At ~40 km/h = ~11 m/s, in 2s interval = ~22m. Dense points are ~20-60m apart.
+            # Step 1-3 waypoints per tick depending on speed.
+            steps = max(1, int(self.speed / 25))  # faster = more steps
+            for _ in range(steps):
+                target_lat, target_lng = self.waypoints[self.current_wp]
+                dlat = target_lat - self.lat
+                dlng = target_lng - self.lng
+                distance = math.sqrt(dlat ** 2 + dlng ** 2)
 
-        # If close to waypoint, advance to next (wrap around for loop)
-        if distance < 0.002:
-            self.current_wp = (self.current_wp + 1) % len(self.waypoints)
-            # Pick a new target speed for the next leg
-            self.target_speed = random.uniform(25, 55)
-            return
+                if distance < 0.0003:  # ~33m — close enough, advance to next point
+                    self.current_wp = (self.current_wp + 1) % len(self.waypoints)
+                    self.lat = target_lat
+                    self.lng = target_lng
+                    continue
 
-        # Move towards target — speed controls step size
-        speed_factor = 0.0005 * (self.speed / 30)
-        self.lat += dlat / distance * speed_factor
-        self.lng += dlng / distance * speed_factor
+                # Interpolate smoothly towards next dense point
+                speed_factor = 0.0004 * (self.speed / 30)
+                move = min(speed_factor / distance, 1.0)  # don't overshoot
+                self.lat += dlat * move
+                self.lng += dlng * move
+                break  # moved, wait for next tick
 
-        # Update heading (degrees)
-        self.heading = math.degrees(math.atan2(dlng, dlat)) % 360
+            # Heading from current pos to the next waypoint (or the one after)
+            look_ahead = min(self.current_wp + 2, len(self.waypoints) - 1)
+            ahead_lat, ahead_lng = self.waypoints[look_ahead]
+            dlat_h = ahead_lat - self.lat
+            dlng_h = ahead_lng - self.lng
+            if abs(dlat_h) > 1e-8 or abs(dlng_h) > 1e-8:
+                self.heading = math.degrees(math.atan2(dlng_h, dlat_h)) % 360
+
+        else:
+            # Sparse fallback waypoints: original behaviour
+            target_lat, target_lng = self.waypoints[self.current_wp]
+            dlat = target_lat - self.lat
+            dlng = target_lng - self.lng
+            distance = math.sqrt(dlat ** 2 + dlng ** 2)
+
+            if distance < 0.002:
+                self.current_wp = (self.current_wp + 1) % len(self.waypoints)
+                self.target_speed = random.uniform(25, 55)
+                return
+
+            speed_factor = 0.0005 * (self.speed / 30)
+            self.lat += dlat / distance * speed_factor
+            self.lng += dlng / distance * speed_factor
+            self.heading = math.degrees(math.atan2(dlng, dlat)) % 360
 
         # Smooth speed towards target (Kalman-like drift)
+        # Occasionally pick a new target speed to simulate traffic
+        if random.random() < 0.05:
+            self.target_speed = random.uniform(25, 55)
         self.speed += (self.target_speed - self.speed) * 0.1
         self.speed += random.gauss(0, 0.5)
         self.speed = max(10, min(65, self.speed))
@@ -183,8 +342,9 @@ class BusSimulator:
             )[0]
 
             if event_type == 'HARSH_BRAKE':
-                # Generate braking g-force that actually exceeds the threshold
-                accel_x = random.uniform(-2.2, THRESHOLD_HARSH_BRAKE - 0.05)
+                # Generate braking g-force that exceeds the threshold
+                # Bus range: -0.45 to -0.8g (emergency-stop territory)
+                accel_x = random.uniform(-0.8, THRESHOLD_HARSH_BRAKE - 0.02)
                 event = {
                     'type': 'HARSH_BRAKE',
                     'severity': 'HIGH' if accel_x < THRESHOLD_HARSH_BRAKE_HIGH else 'MEDIUM',
@@ -192,7 +352,8 @@ class BusSimulator:
                 }
 
             elif event_type == 'HARSH_ACCEL':
-                accel_x = random.uniform(THRESHOLD_HARSH_ACCEL + 0.05, 1.6)
+                # Bus range: 0.35 to 0.55g (aggressive pull-away)
+                accel_x = random.uniform(THRESHOLD_HARSH_ACCEL + 0.02, 0.55)
                 event = {
                     'type': 'HARSH_ACCEL',
                     'severity': 'MEDIUM',  # always MEDIUM per main_pi.py
@@ -201,7 +362,8 @@ class BusSimulator:
 
             elif event_type == 'AGGRESSIVE_TURN':
                 direction = random.choice([-1, 1])
-                accel_y = random.uniform(THRESHOLD_AGGRESSIVE_TURN + 0.05, 1.3) * direction
+                # Bus range: 0.4 to 0.6g lateral (near-rollover territory)
+                accel_y = random.uniform(THRESHOLD_AGGRESSIVE_TURN + 0.02, 0.6) * direction
                 event = {
                     'type': 'AGGRESSIVE_TURN',
                     'severity': 'HIGH' if abs(accel_y) > THRESHOLD_AGGRESSIVE_TURN_HIGH else 'MEDIUM',

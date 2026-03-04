@@ -117,6 +117,7 @@ class BusLocation(db.Model):
         return {
             'bus_id': self.bus_id,
             'bus_registration': self.bus.registration_number if self.bus else None,
+            'driver_name': self.bus.driver_name if self.bus else None,
             'latitude': self.latitude,
             'longitude': self.longitude,
             'speed': self.speed,

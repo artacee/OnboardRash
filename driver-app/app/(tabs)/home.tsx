@@ -197,6 +197,10 @@ export default function HomeScreen() {
             } else {
                 setGpsStreaming(true);
             }
+
+            // Notify Pi hardware to enable event detection
+            await gps.notifyPiTripStart();
+
             await fetchData();
         } catch (err: any) {
             Alert.alert('Error', err.message || 'Failed to start trip');
@@ -214,6 +218,8 @@ export default function HomeScreen() {
                 onPress: async () => {
                     setLoading(true);
                     try {
+                        // Notify Pi to stop detection FIRST (while still connected)
+                        await gps.notifyPiTripStop();
                         await gps.stopGPSStream();
                         setGpsStreaming(false);
                         const result = await api.stopTrip();

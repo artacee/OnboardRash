@@ -19,6 +19,8 @@ Use voltage divider: ECHO → 1kΩ → GPIO24, GPIO24 → 2kΩ → GND
 """
 
 import time
+from collections import deque
+
 try:
     import RPi.GPIO as GPIO
     GPIO_AVAILABLE = True
@@ -141,12 +143,16 @@ class OvertakingDetector:
     
     When a vehicle passes too close on the left side, it's flagged
     as a dangerous overtaking event.
+
+    Filters out static obstacles (walls, guardrails) by requiring
+    the detected object to be approaching (distance decreasing).
     """
     
     # Detection parameters
     CLOSE_DISTANCE_CM = 100      # Very close - HIGH severity
     WARNING_DISTANCE_CM = 150    # Warning zone - MEDIUM severity
     MIN_DETECTION_TIME = 0.5     # Minimum time object must be present
+    APPROACH_DELTA_CM = 5        # Object must get ≥5 cm closer over 3 readings
     
     def __init__(self, sensor):
         """
@@ -158,6 +164,16 @@ class OvertakingDetector:
         self.sensor = sensor
         self.detection_start = None
         self.last_detection = None
+        self.distance_history = deque(maxlen=3)
+    
+    def _is_approaching(self):
+        """
+        Check if the detected object is getting closer (not a static wall).
+        Requires ≥3 readings and a net decrease of ≥APPROACH_DELTA_CM.
+        """
+        if len(self.distance_history) < 3:
+            return True  # Not enough data yet — allow detection to proceed
+        return self.distance_history[-1] < self.distance_history[0] - self.APPROACH_DELTA_CM
     
     def analyze(self):
         """
@@ -172,6 +188,8 @@ class OvertakingDetector:
             self.detection_start = None
             return None
         
+        self.distance_history.append(distance)
+        
         # Check if object is in warning/danger zone
         if distance < self.WARNING_DISTANCE_CM:
             current_time = time.time()
@@ -181,10 +199,10 @@ class OvertakingDetector:
                 self.detection_start = current_time
                 return None
             
-            # Check if detection is long enough
+            # Check if detection is long enough AND object is approaching
             detection_duration = current_time - self.detection_start
             
-            if detection_duration >= self.MIN_DETECTION_TIME:
+            if detection_duration >= self.MIN_DETECTION_TIME and self._is_approaching():
                 # Determine severity
                 if distance < self.CLOSE_DISTANCE_CM:
                     severity = 'HIGH'

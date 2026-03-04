@@ -12,7 +12,7 @@ export function useSocketIO(url: string): SocketIOHook {
   useEffect(() => {
     // Create socket connection
     const socket = io(url, {
-      transports: ['websocket'],
+      transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 5

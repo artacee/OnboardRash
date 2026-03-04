@@ -14,8 +14,9 @@ import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { motion } from 'framer-motion'
-import { Maximize2, Minimize2, Plus, Minus, Navigation } from 'lucide-react'
+import { Maximize2, Minimize2, Plus, Minus, Navigation, AlertTriangle } from 'lucide-react'
 import type { BusLocation, Event as EventType } from '@/types'
+import { snapIncrementalTrail, clearMatchState } from '@/utils/osrmMatch'
 import './LiveMap.css'
 
 // ─── Bus SVG icon (fully self-contained, rotates with heading) ───────────────
@@ -150,6 +151,21 @@ function calcBearing(lat1: number, lng1: number, lat2: number, lng2: number): nu
     return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360
 }
 
+// ─── Zoom-adaptive trail weights (Google Maps style) ─────────────────────────
+// Google Maps keeps its route line clearly visible at every zoom level.
+// We scale polyline weight based on zoom: thick at street level, still
+// prominent at city/region level.
+
+function trailWeights(zoom: number) {
+    // zoom 8 → region,  10 → city,  13 → district,  15 → street,  18 → building
+    if (zoom >= 16) return { border: 14, fill: 10, raw: 8 }
+    if (zoom >= 14) return { border: 12, fill: 8, raw: 6 }
+    if (zoom >= 12) return { border: 10, fill: 7, raw: 5 }
+    if (zoom >= 10) return { border: 8, fill: 6, raw: 4 }
+    if (zoom >= 8)  return { border: 6, fill: 4, raw: 3 }
+    return { border: 5, fill: 3, raw: 2 }
+}
+
 // ─── Per-bus animation state ──────────────────────────────────────────────────
 
 interface BusAnimState {
@@ -185,30 +201,51 @@ export default function LiveMap({ buses, events = [], height = 480 }: LiveMapPro
     const markersRef = useRef<Map<number, L.Marker>>(new Map())
     const eventMarkersRef = useRef<Map<number, L.Marker>>(new Map())
     const pathsRef = useRef<Map<number, L.Polyline>>(new Map())
+    const snappedPathsRef = useRef<Map<number, L.Polyline>>(new Map())
+    const snappedBorderRef = useRef<Map<number, L.Polyline>>(new Map())
     const pathHistoryRef = useRef<Map<number, [number, number][]>>(new Map())
     const animStateRef = useRef<Map<number, BusAnimState>>(new Map())
 
     const [isFullscreen, setIsFullscreen] = useState(false)
+    const [showEvents, setShowEvents] = useState(true)
+    const focusIndexRef = useRef(0)
+    // Always reflects the latest buses prop so stale closures (e.g. click handlers)
+    // can still read current data without being re-created on every render
+    const busesRef = useRef(buses)
+    useEffect(() => { busesRef.current = buses }, [buses])
+    const eventTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
 
-    // ── Event markers ────────────────────────────────────────────────────────
+    // ── Event markers (auto-expire, max 5 visible, smaller icons) ────────────
     useEffect(() => {
         if (!mapRef.current) return
         const map = mapRef.current
         const currentEventMarkers = eventMarkersRef.current
-        const importantEvents = events.filter(e => e.severity === 'HIGH' || e.severity === 'MEDIUM')
 
-        importantEvents.forEach(event => {
-            if (currentEventMarkers.has(event.id)) return
+        // Toggle visibility — remove all when hidden
+        if (!showEvents) {
+            currentEventMarkers.forEach(m => m.remove())
+            return
+        }
+
+        const importantEvents = events.filter(e => e.severity === 'HIGH' || e.severity === 'MEDIUM')
+        // Only show the latest 5 events on the map to prevent clutter
+        const recentEvents = importantEvents.slice(0, 5)
+        const recentIds = new Set(recentEvents.map(e => e.id))
+
+        recentEvents.forEach(event => {
+            if (currentEventMarkers.has(event.id)) {
+                // Re-add to map if it was hidden by toggle
+                if (!map.hasLayer(currentEventMarkers.get(event.id)!)) {
+                    currentEventMarkers.get(event.id)!.addTo(map)
+                }
+                return
+            }
+
+            const isHigh = event.severity === 'HIGH'
             const icon = L.divIcon({
                 html: `
-                    <div style="
-                        width:32px;height:32px;
-                        background:${event.severity === 'HIGH' ? 'rgba(239,68,68,0.95)' : 'rgba(245,158,11,0.95)'};
-                        border:3px solid white;border-radius:50%;
-                        display:flex;align-items:center;justify-content:center;
-                        box-shadow:0 4px 12px rgba(0,0,0,0.25);
-                        animation:pulse 2s infinite;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                    <div class="event-pip ${isHigh ? 'event-pip-high' : 'event-pip-med'}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
                              fill="none" stroke="white" stroke-width="3"
                              stroke-linecap="round" stroke-linejoin="round">
                             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
@@ -216,15 +253,15 @@ export default function LiveMap({ buses, events = [], height = 480 }: LiveMapPro
                         </svg>
                     </div>`,
                 className: 'event-marker',
-                iconSize: [32, 32],
-                iconAnchor: [16, 16]
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
             })
-            const marker = L.marker([event.latitude, event.longitude], { icon })
+            const marker = L.marker([event.latitude, event.longitude], { icon, zIndexOffset: -100 })
             marker.bindPopup(`
                 <div class="glass-popup-content">
                     <div class="glass-popup-header">
                         <div class="glass-popup-title">${event.event_type.replace(/_/g, ' ')}</div>
-                        <div class="glass-popup-badge ${event.severity === 'HIGH' ? 'live' : 'idle'}">${event.severity}</div>
+                        <div class="glass-popup-badge ${isHigh ? 'live' : 'idle'}">${event.severity}</div>
                     </div>
                     <div class="glass-popup-row">
                         <span>Bus:</span>
@@ -238,15 +275,26 @@ export default function LiveMap({ buses, events = [], height = 480 }: LiveMapPro
             `, { className: 'glass-popup', closeButton: false })
             marker.addTo(map)
             currentEventMarkers.set(event.id, marker)
+
+            // Auto-expire: remove after 15 seconds
+            const timer = setTimeout(() => {
+                marker.remove()
+                currentEventMarkers.delete(event.id)
+                eventTimersRef.current.delete(event.id)
+            }, 15000)
+            eventTimersRef.current.set(event.id, timer)
         })
 
+        // Remove markers not in the latest 5
         currentEventMarkers.forEach((marker, id) => {
-            if (!importantEvents.find(e => e.id === id)) {
+            if (!recentIds.has(id)) {
                 marker.remove()
                 currentEventMarkers.delete(id)
+                const timer = eventTimersRef.current.get(id)
+                if (timer) { clearTimeout(timer); eventTimersRef.current.delete(id) }
             }
         })
-    }, [events])
+    }, [events, showEvents])
 
     // ── Map initialisation ───────────────────────────────────────────────────
     useEffect(() => {
@@ -257,7 +305,7 @@ export default function LiveMap({ buses, events = [], height = 480 }: LiveMapPro
             zoom: 10,
             zoomControl: false,
             attributionControl: false,
-            scrollWheelZoom: false
+            scrollWheelZoom: true
         })
 
         L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
@@ -266,6 +314,16 @@ export default function LiveMap({ buses, events = [], height = 480 }: LiveMapPro
         }).addTo(map)
 
         mapRef.current = map
+
+        // ── Zoom-adaptive trail thickness ─────────────────────────────────
+        const updateTrailWeights = () => {
+            const z = map.getZoom()
+            const w = trailWeights(z)
+            pathsRef.current.forEach(p => p.setStyle({ weight: w.raw }))
+            snappedBorderRef.current.forEach(p => p.setStyle({ weight: w.border }))
+            snappedPathsRef.current.forEach(p => p.setStyle({ weight: w.fill }))
+        }
+        map.on('zoomend', updateTrailWeights)
 
         return () => {
             // Cancel all running animations
@@ -288,25 +346,44 @@ export default function LiveMap({ buses, events = [], height = 480 }: LiveMapPro
 
             // ── First time seeing this bus ─────────────────────────────────
             if (!anim || !existingMarker) {
+                // Bus reconnected after a trip — clear the previous trip's trail
+                // so the new trip starts with a clean slate
+                const oldPath = pathsRef.current.get(bus.bus_id)
+                if (oldPath) { oldPath.remove(); pathsRef.current.delete(bus.bus_id) }
+                const oldBorder = snappedBorderRef.current.get(bus.bus_id)
+                if (oldBorder) { oldBorder.remove(); snappedBorderRef.current.delete(bus.bus_id) }
+                const oldSnapped = snappedPathsRef.current.get(bus.bus_id)
+                if (oldSnapped) { oldSnapped.remove(); snappedPathsRef.current.delete(bus.bus_id) }
+                pathHistoryRef.current.delete(bus.bus_id)
+                clearMatchState(bus.bus_id)
+
                 const icon = createBusIcon(bus.status, bus.heading ?? 0, bus.bus_id)
                 const marker = L.marker([bus.latitude, bus.longitude], { icon })
 
-                marker.bindPopup(`
-                    <div class="glass-popup-content">
-                        <div class="glass-popup-header">
-                            <div class="glass-popup-title">Bus ${bus.registration_number || bus.bus_id}</div>
-                            <div class="glass-popup-badge live">LIVE</div>
-                        </div>
-                        <div class="glass-popup-row">
-                            <span style="opacity:.7">Driver:</span>
-                            <span style="color:var(--text-primary);font-weight:500">${bus.driver_name || 'N/A'}</span>
-                        </div>
-                        <div class="glass-popup-row">
-                            <span style="opacity:.7">Speed:</span>
-                            <span style="color:var(--text-primary);font-weight:500">${Math.round(bus.speed)} km/h</span>
-                        </div>
-                    </div>
-                `, { className: 'glass-popup', closeButton: false })
+                const buildPopup = (b: typeof bus) => `
+                        <div class="glass-popup-content">
+                            <div class="glass-popup-header">
+                                <div class="glass-popup-title">Bus ${b.registration_number || b.bus_id}</div>
+                                <div class="glass-popup-badge live">LIVE</div>
+                            </div>
+                            <div class="glass-popup-row">
+                                <span style="opacity:.7">Driver:</span>
+                                <span style="color:var(--text-primary);font-weight:500">${b.driver_name || 'N/A'}</span>
+                            </div>
+                            <div class="glass-popup-row">
+                                <span style="opacity:.7">Speed:</span>
+                                <span style="color:var(--text-primary);font-weight:500">${Math.round(b.speed)} km/h</span>
+                            </div>
+                        </div>`
+                // Store the builder on the marker so handleRecenter can reuse it
+                ;(marker as any)._buildPopup = () => {
+                    const latest = busesRef.current.find(x => x.bus_id === bus.bus_id) || bus
+                    return buildPopup(latest)
+                }
+                marker.bindPopup(buildPopup(bus), { className: 'glass-popup', closeButton: false })
+                marker.on('click', () => {
+                    marker.setPopupContent((marker as any)._buildPopup())
+                })
 
                 marker.addTo(map)
                 markersRef.current.set(bus.bus_id, marker)
@@ -367,28 +444,78 @@ export default function LiveMap({ buses, events = [], height = 480 }: LiveMapPro
                 anim.curLng = lng
                 existingMarker.setLatLng([lat, lng])
 
-                // Update trail
+                // ── Update trail (full journey, road-snapped Google Maps style) ──
                 const history = pathHistoryRef.current
                 if (!history.has(bus.bus_id)) history.set(bus.bus_id, [])
                 const busPath = history.get(bus.bus_id)!
                 const last = busPath[busPath.length - 1]
                 if (!last || last[0] !== lat || last[1] !== lng) {
                     busPath.push([lat, lng])
-                    if (busPath.length > 40) busPath.shift() // longer tail for smooth trail
+                    // NO cap — full journey from start
                 }
+
+                // Draw the raw trail (fallback — visible until snapped trail is ready)
                 const existingPath = pathsRef.current.get(bus.bus_id)
                 if (existingPath) {
                     existingPath.setLatLngs(busPath)
                 } else if (busPath.length > 1) {
+                    const w = trailWeights(map.getZoom())
                     const poly = L.polyline(busPath, {
-                        color: '#34d399',
-                        weight: 4,
-                        opacity: 0.45,
+                        color: '#60a5fa',
+                        weight: w.raw,
+                        opacity: 0.5,
                         lineCap: 'round',
                         lineJoin: 'round',
-                        className: 'bus-trail'
+                        className: 'bus-trail bus-trail-raw'
                     }).addTo(map)
                     pathsRef.current.set(bus.bus_id, poly)
+                }
+
+                // Trigger incremental OSRM road-snap (async, throttled)
+                // Sends only new points, accumulates the full journey snapped geometry
+                if (busPath.length >= 5 && t >= 1) {
+                    const pathCopy: [number, number][] = [...busPath]
+                    snapIncrementalTrail(bus.bus_id, pathCopy).then(fullSnapped => {
+                        if (!fullSnapped || !mapRef.current) return
+
+                        // Border polyline (dark, wide — creates the outline)
+                        const curZoom = mapRef.current.getZoom()
+                        const w = trailWeights(curZoom)
+                        const existingBorder = snappedBorderRef.current.get(bus.bus_id)
+                        if (existingBorder) {
+                            existingBorder.setLatLngs(fullSnapped)
+                        } else {
+                            const border = L.polyline(fullSnapped, {
+                                color: '#1e40af',
+                                weight: w.border,
+                                opacity: 0.55,
+                                lineCap: 'round',
+                                lineJoin: 'round',
+                                className: 'bus-trail bus-trail-border'
+                            }).addTo(mapRef.current)
+                            snappedBorderRef.current.set(bus.bus_id, border)
+                        }
+
+                        // Fill polyline (lighter, on top — the main visible trail)
+                        const existingSnapped = snappedPathsRef.current.get(bus.bus_id)
+                        if (existingSnapped) {
+                            existingSnapped.setLatLngs(fullSnapped)
+                        } else {
+                            const fill = L.polyline(fullSnapped, {
+                                color: '#4a90ff',
+                                weight: w.fill,
+                                opacity: 0.9,
+                                lineCap: 'round',
+                                lineJoin: 'round',
+                                className: 'bus-trail bus-trail-snapped'
+                            }).addTo(mapRef.current)
+                            snappedPathsRef.current.set(bus.bus_id, fill)
+                        }
+
+                        // Hide the raw fallback trail once road-snapped is visible
+                        const rawPath = pathsRef.current.get(bus.bus_id)
+                        if (rawPath) rawPath.setStyle({ opacity: 0.0 })
+                    })
                 }
 
                 if (t < 1) {
@@ -401,7 +528,10 @@ export default function LiveMap({ buses, events = [], height = 480 }: LiveMapPro
             anim.rafId = requestAnimationFrame(tick)
         })
 
-        // Cleanup removed buses
+        // ── Cleanup removed buses ──────────────────────────────────────────
+        // Remove the bus marker + animation state, but KEEP trail polylines
+        // on the map so the route stays visible after the trip ends.
+        // Trails are only cleared when the same bus_id reconnects (new trip).
         markersRef.current.forEach((marker, busId) => {
             if (!buses.find(b => b.bus_id === busId)) {
                 const anim = animStateRef.current.get(busId)
@@ -411,13 +541,7 @@ export default function LiveMap({ buses, events = [], height = 480 }: LiveMapPro
                 marker.remove()
                 markersRef.current.delete(busId)
                 animStateRef.current.delete(busId)
-
-                const path = pathsRef.current.get(busId)
-                if (path) {
-                    path.remove()
-                    pathsRef.current.delete(busId)
-                }
-                pathHistoryRef.current.delete(busId)
+                // trails (pathsRef, snappedBorderRef, snappedPathsRef) stay on map
             }
         })
     }, [buses])
@@ -425,13 +549,38 @@ export default function LiveMap({ buses, events = [], height = 480 }: LiveMapPro
     // ── Controls ─────────────────────────────────────────────────────────────
     const handleZoomIn = () => mapRef.current?.zoomIn()
     const handleZoomOut = () => mapRef.current?.zoomOut()
+    // Reset focus index whenever the number of buses changes so stale indices
+    // don't cycle into non-existent slots (e.g. after simulator stops)
+    const prevBusCountRef = useRef(buses.length)
+    useEffect(() => {
+        if (buses.length !== prevBusCountRef.current) {
+            focusIndexRef.current = 0
+            prevBusCountRef.current = buses.length
+        }
+    }, [buses.length])
+
     const handleRecenter = () => {
-        if (buses.length > 0 && mapRef.current) {
-            const markers = Array.from(markersRef.current.values())
-            if (markers.length > 0) {
-                const group = L.featureGroup(markers)
-                mapRef.current.fitBounds(group.getBounds(), { padding: [60, 60] })
+        if (buses.length === 0 || !mapRef.current) return
+
+        // Clamp first in case the array shrank mid-session, then cycle
+        focusIndexRef.current = focusIndexRef.current % buses.length
+        const idx = focusIndexRef.current
+        const bus = buses[idx]
+        focusIndexRef.current = (idx + 1) % buses.length
+
+        // Pan to the bus while keeping the user's current zoom level
+        const currentZoom = mapRef.current.getZoom()
+        mapRef.current.flyTo([bus.latitude, bus.longitude], currentZoom, {
+            duration: 0.6,
+        })
+
+        // Populate then open the popup for the focused bus
+        const marker = markersRef.current.get(bus.bus_id)
+        if (marker) {
+            if ((marker as any)._buildPopup) {
+                marker.setPopupContent((marker as any)._buildPopup())
             }
+            marker.openPopup()
         }
     }
     const toggleFullscreen = () => {
@@ -456,9 +605,19 @@ export default function LiveMap({ buses, events = [], height = 480 }: LiveMapPro
                     onClick={handleRecenter}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    title="Recenter Map"
+                    title={buses.length > 1 ? `Focus bus (${(focusIndexRef.current % buses.length) + 1}/${buses.length})` : buses.length === 1 ? 'Focus bus' : 'No active buses'}
                 >
                     <Navigation size={18} />
+                </motion.button>
+
+                <motion.button
+                    className={`control-pill ${showEvents ? 'control-pill-active' : ''}`}
+                    onClick={() => setShowEvents(prev => !prev)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    title={showEvents ? 'Hide event markers' : 'Show event markers'}
+                >
+                    <AlertTriangle size={18} />
                 </motion.button>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

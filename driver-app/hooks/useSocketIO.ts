@@ -24,7 +24,7 @@ export function useSocketIO(url: string): UseSocketIOReturn {
         if (!url) return;
 
         const socket = io(url, {
-            transports: ['websocket'],
+            transports: ['polling', 'websocket'],
             reconnection: true,
             reconnectionDelay: 1000,
             reconnectionAttempts: 10,

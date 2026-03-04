@@ -158,11 +158,11 @@ export const eventsApi = {
 /**
  * Map a raw backend bus location to the frontend BusLocation type
  */
-function mapBusLocation(loc: any): BusLocation { // eslint-disable-line @typescript-eslint/no-explicit-any
+export function mapBusLocation(loc: any): BusLocation { // eslint-disable-line @typescript-eslint/no-explicit-any
   return {
     bus_id: loc.bus_id,
     registration_number: loc.bus_registration || '',
-    driver_name: '',
+    driver_name: loc.driver_name || '',
     latitude: loc.latitude,
     longitude: loc.longitude,
     speed: loc.speed ?? 0,

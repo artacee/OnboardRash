@@ -18,7 +18,7 @@ Update: Correct prediction using GPS Speed measurement
 import time
 
 class KalmanFilter:
-    def __init__(self, initial_speed=0.0, process_noise=0.1, measurement_noise=2.0):
+    def __init__(self, initial_speed=0.0, process_noise=0.1, measurement_noise=4.0):
         """
         Initialize 1D Kalman Filter for speed estimation.
         
@@ -26,6 +26,7 @@ class KalmanFilter:
             initial_speed: Starting speed in km/h
             process_noise (Q): Uncertainty in the process (acceleration noise)
             measurement_noise (R): Uncertainty in measurement (GPS noise)
+                                   Phone GPS speed accuracy ≈ ±3-5 km/h → R=4.0
         """
         self.velocity = initial_speed  # State estimate
         self.uncertainty = 5.0         # Initial uncertainty (P)
