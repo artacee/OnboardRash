@@ -77,22 +77,39 @@ class CameraModule:
             print("⚠️  OpenCV not available — evidence capture disabled.")
             return
 
-        try:
-            cap = cv2.VideoCapture(self.device_index)
+        # Try the requested device index first, then scan 0–4 as fallback
+        indices_to_try = [self.device_index]
+        for i in range(5):
+            if i not in indices_to_try:
+                indices_to_try.append(i)
 
-            # Force resolution and FPS
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH,  self.resolution[0])
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.resolution[1])
-            cap.set(cv2.CAP_PROP_FPS,          self.fps)
+        for idx in indices_to_try:
+            cap = None
+            try:
+                # Pass V4L2 backend directly to constructor (CAP_PROP_BACKEND
+                # is read-only and cannot be set after creation).
+                cap = cv2.VideoCapture(idx, cv2.CAP_V4L2)
 
-            # On Pi 5, V4L2 backend gives best performance
-            cap.set(cv2.CAP_PROP_BACKEND, cv2.CAP_V4L2)
+                if not cap.isOpened():
+                    # Fallback: try default backend (auto-detect)
+                    cap.release()
+                    cap = cv2.VideoCapture(idx)
 
-            if cap.isOpened():
+                if not cap.isOpened():
+                    if cap:
+                        cap.release()
+                    continue
+
+                # Force resolution and FPS
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH,  self.resolution[0])
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.resolution[1])
+                cap.set(cv2.CAP_PROP_FPS,          self.fps)
+
                 # Verify we can actually grab a frame
                 ok, _ = cap.read()
                 if ok:
                     self.camera = cap
+                    self.device_index = idx
 
                     # Read back actual values (webcam may negotiate different)
                     actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -102,12 +119,17 @@ class CameraModule:
                     self.fps = actual_fps or self.fps
 
                     print(f"📹 USB Webcam: {actual_w}×{actual_h} @ {actual_fps}fps "
-                          f"(/dev/video{self.device_index})")
+                          f"(/dev/video{idx})")
                     return
                 else:
                     cap.release()
-        except Exception as e:
-            print(f"USB camera init failed: {e}")
+            except Exception as e:
+                print(f"  /dev/video{idx}: {e}")
+                if cap:
+                    try:
+                        cap.release()
+                    except Exception:
+                        pass
 
         print("⚠️  No USB webcam detected — evidence capture disabled.")
 

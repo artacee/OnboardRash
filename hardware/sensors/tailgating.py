@@ -101,30 +101,38 @@ class TailgatingDetector:
 
     def detect_vehicles_dnn(self, frame):
         """Detect vehicles using MobileNet-SSD via OpenCV DNN."""
-        h, w = frame.shape[:2]
-        blob = cv2.dnn.blobFromImage(
-            cv2.resize(frame, _DNN_INPUT_SIZE),
-            0.007843,            # scale
-            _DNN_INPUT_SIZE,
-            127.5                # mean subtraction
-        )
-        self.net.setInput(blob)
-        detections = self.net.forward()
+        try:
+            h, w = frame.shape[:2]
+            blob = cv2.dnn.blobFromImage(
+                cv2.resize(frame, _DNN_INPUT_SIZE),
+                0.007843,            # scale
+                _DNN_INPUT_SIZE,
+                127.5                # mean subtraction
+            )
+            self.net.setInput(blob)
+            detections = self.net.forward()
 
-        vehicles = []
-        for i in range(detections.shape[2]):
-            confidence = detections[0, 0, i, 2]
-            class_id   = int(detections[0, 0, i, 1])
+            vehicles = []
+            for i in range(detections.shape[2]):
+                confidence = detections[0, 0, i, 2]
+                class_id   = int(detections[0, 0, i, 1])
 
-            if confidence > _DNN_CONFIDENCE_THRESHOLD and class_id in _VEHICLE_CLASS_IDS:
-                box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-                x1, y1, x2, y2 = box.astype("int")
-                x1, y1 = max(0, x1), max(0, y1)
-                bw, bh = x2 - x1, y2 - y1
-                if bw > 0 and bh > 0:
-                    vehicles.append((x1, y1, bw, bh))
+                if confidence > _DNN_CONFIDENCE_THRESHOLD and class_id in _VEHICLE_CLASS_IDS:
+                    box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+                    x1, y1, x2, y2 = box.astype("int")
+                    x1, y1 = max(0, x1), max(0, y1)
+                    bw, bh = x2 - x1, y2 - y1
+                    if bw > 0 and bh > 0:
+                        vehicles.append((x1, y1, bw, bh))
 
-        return vehicles
+            return vehicles
+        except Exception as e:
+            # DNN forward pass failed (e.g. OpenCV 4.13 BatchNorm incompatibility)
+            # Auto-fallback to contour detection
+            print(f"⚠️  DNN detection failed: {e}")
+            print("   Switching to contour-based detection (auto-fallback)")
+            self.use_dnn = False
+            return self.detect_vehicles_contour(frame)
 
     def detect_vehicles_contour(self, frame):
         """
@@ -197,64 +205,70 @@ class TailgatingDetector:
         if not CV2_AVAILABLE or frame is None:
             return None
 
-        self.frame_count += 1
-        frame_height, frame_width = frame.shape[:2]
-        frame_area = frame_width * frame_height
+        try:
+            self.frame_count += 1
+            frame_height, frame_width = frame.shape[:2]
+            frame_area = frame_width * frame_height
 
-        # 1. Night Vision Enhancement
-        processed_frame = self.preprocess_for_night(frame)
+            # 1. Night Vision Enhancement
+            processed_frame = self.preprocess_for_night(frame)
 
-        # 2. Detect vehicles
-        if self.use_dnn and self.net is not None:
-            vehicles = self.detect_vehicles_dnn(processed_frame)
-        else:
-            vehicles = self.detect_vehicles_contour(processed_frame)
-
-        # 3. Find largest vehicle (closest to camera)
-        max_vehicle_area = 0
-        max_vehicle = None
-
-        for vehicle in vehicles:
-            if len(vehicle) == 4:
-                x, y, w, h = vehicle
-                area = w * h
-                if area > max_vehicle_area:
-                    max_vehicle_area = area
-                    max_vehicle = (x, y, w, h)
-
-        area_percent = (max_vehicle_area / frame_area) * 100 if max_vehicle_area > 0 else 0
-
-        # 4. IoU-based same-object tracking
-        if area_percent >= self.WARNING_AREA_PERCENT and max_vehicle is not None:
-            # Only count if it's the SAME vehicle as last frame (or first sighting)
-            if self.prev_bbox is None or self._iou(max_vehicle, self.prev_bbox) >= self.IOU_THRESHOLD:
-                self.detection_count += 1
+            # 2. Detect vehicles
+            if self.use_dnn and self.net is not None:
+                vehicles = self.detect_vehicles_dnn(processed_frame)
             else:
-                # Different object — reset streak
-                self.detection_count = 1
+                vehicles = self.detect_vehicles_contour(processed_frame)
 
-            self.prev_bbox = max_vehicle
+            # 3. Find largest vehicle (closest to camera)
+            max_vehicle_area = 0
+            max_vehicle = None
 
-            if self.detection_count >= self.MIN_DETECTION_FRAMES:
-                severity = 'HIGH' if area_percent >= self.TAILGATE_AREA_PERCENT else 'MEDIUM'
+            for vehicle in vehicles:
+                if len(vehicle) == 4:
+                    x, y, w, h = vehicle
+                    area = w * h
+                    if area > max_vehicle_area:
+                        max_vehicle_area = area
+                        max_vehicle = (x, y, w, h)
 
-                self.detection_count = 0
-                self.last_detection_time = time.time()
+            area_percent = (max_vehicle_area / frame_area) * 100 if max_vehicle_area > 0 else 0
 
-                estimated_distance = max(5, 100 - (area_percent * 3))
+            # 4. IoU-based same-object tracking
+            if area_percent >= self.WARNING_AREA_PERCENT and max_vehicle is not None:
+                # Only count if it's the SAME vehicle as last frame (or first sighting)
+                if self.prev_bbox is None or self._iou(max_vehicle, self.prev_bbox) >= self.IOU_THRESHOLD:
+                    self.detection_count += 1
+                else:
+                    # Different object — reset streak
+                    self.detection_count = 1
 
-                return {
-                    'type': 'TAILGATING',
-                    'severity': severity,
-                    'area_percent': round(area_percent, 1),
-                    'estimated_distance': round(estimated_distance, 0),
-                    'value': round(area_percent, 1)
-                }
-        else:
-            # No vehicle in warning zone — decay counter
-            self.detection_count = max(0, self.detection_count - 1)
-            if self.detection_count == 0:
-                self.prev_bbox = None
+                self.prev_bbox = max_vehicle
+
+                if self.detection_count >= self.MIN_DETECTION_FRAMES:
+                    severity = 'HIGH' if area_percent >= self.TAILGATE_AREA_PERCENT else 'MEDIUM'
+
+                    self.detection_count = 0
+                    self.last_detection_time = time.time()
+
+                    estimated_distance = max(5, 100 - (area_percent * 3))
+
+                    return {
+                        'type': 'TAILGATING',
+                        'severity': severity,
+                        'area_percent': round(area_percent, 1),
+                        'estimated_distance': round(estimated_distance, 0),
+                        'value': round(area_percent, 1)
+                    }
+            else:
+                # No vehicle in warning zone — decay counter
+                self.detection_count = max(0, self.detection_count - 1)
+                if self.detection_count == 0:
+                    self.prev_bbox = None
+
+        except Exception as e:
+            # Never let a detection error crash the entire sensor loop
+            if self.frame_count % 100 == 1:
+                print(f"⚠️  Tailgating analysis error: {e}")
 
         return None
 

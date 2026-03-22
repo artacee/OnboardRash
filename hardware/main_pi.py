@@ -81,7 +81,7 @@ _cli = _parse_args()
 SERVER_URL = _cli.server or os.getenv('SERVER_URL', 'http://localhost:5000')
 BUS_REGISTRATION = _cli.bus or os.getenv('BUS_REGISTRATION', 'KL-01-TEST-001')
 SAMPLE_RATE = float(os.getenv('SAMPLE_RATE', '0.1'))  # 100ms = 10Hz
-ENABLE_CAMERA = os.getenv('ENABLE_CAMERA', 'false').lower() == 'true'
+ENABLE_CAMERA = os.getenv('ENABLE_CAMERA', 'true').lower() == 'true'
 API_KEY = os.getenv('API_KEY', 'default-secure-key-123')
 
 # Phone GPS receiver port
@@ -228,6 +228,27 @@ def _interactive_prompt():
             print("  Unknown command. Use s/p/b or ENTER to start.")
 
     print()  # Blank line before sensor init output
+
+
+def _wait_for_user(message="Press ENTER to continue...", allow_recal=False):
+    """
+    Pause and wait for user input before proceeding.
+    Skipped entirely when --no-prompt is active.
+    If allow_recal is True, also accepts 'r' to signal recalibration.
+    Returns 'r' if recalibration requested, '' otherwise.
+    """
+    if _cli.no_prompt:
+        return ''
+    try:
+        prompt = f"\n  {message}"
+        if allow_recal:
+            prompt += "\n  (or type 'r' + ENTER to recalibrate)"
+        prompt += "\n> "
+        ans = input(prompt).strip().lower()
+        return ans
+    except (EOFError, KeyboardInterrupt):
+        print("\nQuitting.")
+        sys.exit(0)
 
 
 # ── Startup sequence ────────────────────────────────────────────
@@ -417,35 +438,75 @@ def main():
     if MOUNT_ORIENTATION != 'default':
         print(f"🧭 Sensor mount: {MOUNT_ORIENTATION}")
     
-    # Initialize sensors
-    print("\nInitializing sensors...")
-    
-    # 1. IMU (optional — script continues without it)
-    try:
-        mpu = MPU6050()
-        print("✅ MPU-6050 initialized")
-    except Exception as e:
-        print(f"⚠️  MPU-6050 not available: {e}")
-        print("   Running in GPS-only mode (no IMU/rash detection).")
-        mpu = None
-    
-    # 2. GPS (phone companion app)
+    # ── STEP 1: Register Bus with Backend ────────────────────
+    print("\n" + "─"*50)
+    print("  STEP 1/4 — SERVER CONNECTION & BUS REGISTRATION")
+    print("─"*50)
+    register_bus_with_backend()
+    _wait_for_user("Bus registration done. Press ENTER to proceed to IMU calibration...")
+
+    # ── STEP 2: IMU Calibration ──────────────────────────────
+    print("\n" + "─"*50)
+    print("  STEP 2/4 — IMU SENSOR (MPU-6050)")
+    print("─"*50)
+    print("  The IMU detects harsh braking, acceleration, and turns.")
+    print("  Before calibrating, make sure:")
+    print("    • Sensor is mounted FLAT on the dashboard / under a seat")
+    print("    • X-axis (or long edge) points FORWARD along the bus")
+    print("    • The bus is COMPLETELY STILL")
+    _wait_for_user("Press ENTER when sensor is mounted and bus is still...")
+
+    mpu = None
+    while True:
+        try:
+            mpu = MPU6050()
+            print("✅ MPU-6050 initialized and calibrated")
+        except Exception as e:
+            print(f"⚠️  MPU-6050 not available: {e}")
+            print("   Running in GPS-only mode (no IMU/rash detection).")
+            mpu = None
+
+        ans = _wait_for_user(
+            "Press ENTER to continue to GPS setup...",
+            allow_recal=True
+        )
+        if ans == 'r' and mpu is not None:
+            print("\n  🔄 Recalibrating IMU — keep bus still...")
+            try:
+                mpu.close()
+            except Exception:
+                pass
+            continue
+        break
+
+    # ── STEP 3: GPS Receiver ─────────────────────────────────
+    print("\n" + "─"*50)
+    print("  STEP 3/4 — GPS (DRIVER COMPANION APP)")
+    print("─"*50)
     gps = PhoneGPSReceiver(port=PHONE_GPS_PORT)
-    print(f"📱 GPS Source: Driver Companion App (port {PHONE_GPS_PORT})")
-        
-    # 3. Kalman Filter (Sensor Fusion)
+    print(f"  📱 GPS Source: Driver Companion App (port {PHONE_GPS_PORT})")
+    print(f"  Make sure the driver's phone is connected and the app is open.")
+
+    # Kalman Filter (Sensor Fusion)
     kf = KalmanFilter(initial_speed=0)
-    print("🧠 Sensor Fusion (Kalman Filter) initialized")
-    
-    # 4. Ultrasonic (Left Side)
+    print("  🧠 Sensor Fusion (Kalman Filter) initialized")
+    _wait_for_user("Press ENTER to initialize remaining sensors...")
+
+    # ── STEP 4: Other Sensors (Ultrasonic, Camera) ───────────
+    print("\n" + "─"*50)
+    print("  STEP 4/4 — ULTRASONIC & CAMERA")
+    print("─"*50)
+
+    # Ultrasonic (Left Side)
     try:
         ultrasonic = UltrasonicSensor(name="left_side")
         overtaking_detector = OvertakingDetector(ultrasonic)
+        print("  ✅ Ultrasonic sensor initialized (left side)")
     except Exception as e:
-        print(f"⚠️ Ultrasonic failed: {e}")
+        print(f"  ⚠️ Ultrasonic failed: {e}")
         overtaking_detector = None
     
-    # 5. Camera & Tailgating
+    # Camera & Tailgating
     camera = None
     tailgating_detector = None
     
@@ -454,26 +515,35 @@ def main():
             camera = CameraModule(output_dir="recordings")
             if camera.camera:
                 camera.start_buffer_recording()
-                print("📹 Camera initialized (Front Facing)")
-                
-                # Initialize tailgating detector
+                print("  📹 Camera initialized (Front Facing)")
                 tailgating_detector = TailgatingDetector(use_dnn=True)
             else:
-                print("⚠️ No camera detected")
+                print("  ⚠️ No camera detected")
                 camera = None
         except Exception as e:
-            print(f"⚠️ Camera init failed: {e}")
+            print(f"  ⚠️ Camera init failed: {e}")
             camera = None
-    
-    # Register bus with backend and get our DB ID
-    register_bus_with_backend()
+    else:
+        print("  📹 Camera: disabled" if not ENABLE_CAMERA else "  📹 Camera: module not available")
 
     # Initialize main rash driving detector
     rash_detector = RashDrivingDetector()
-    
+
+    # ── Final Summary ────────────────────────────────────────
     print("\n" + "="*60)
-    print("✅ System ready! Sensors calibrated.")
-    print("\n   ⏳ STANDBY — Waiting for driver to start trip in app...")
+    print("  ✅ ALL SENSORS INITIALIZED — SYSTEM READY")
+    print("="*60)
+    print(f"  IMU         : {'✓ calibrated' if mpu else '✗ not available'}")
+    print(f"  GPS         : ✓ listening on port {PHONE_GPS_PORT}")
+    print(f"  Ultrasonic  : {'✓' if overtaking_detector else '✗ not available'}")
+    print(f"  Camera      : {'✓' if camera else '✗ off'}")
+    print(f"  Bus         : {BUS_REGISTRATION} (ID: {BUS_ID or 'pending'})")
+    print(f"  Server      : {SERVER_URL}")
+    print("="*60)
+    _wait_for_user("Press ENTER to start the sensor loop...")
+
+    print("\n" + "="*60)
+    print("   ⏳ STANDBY — Waiting for driver to start trip in app...")
     print("   (Event detection begins when driver taps Start Trip)")
     print("="*60 + "\n")
     

@@ -21,6 +21,21 @@ import './LiveMap.css'
 
 // ─── Bus SVG icon (fully self-contained, rotates with heading) ───────────────
 
+// ── Icon cache: avoids re-creating heavy SVG divIcons on every update ────────
+// Key = `${status}_${roundedHeading}` — heading rounded to 15° buckets
+const iconCache = new Map<string, L.DivIcon>()
+const HEADING_BUCKET = 15 // degrees — coarser bucket = fewer unique icons
+
+const getCachedBusIcon = (status: 'active' | 'idle' | 'offline', heading: number = 0, busId = 0): L.DivIcon => {
+    const roundedHeading = Math.round(heading / HEADING_BUCKET) * HEADING_BUCKET
+    const key = `${status}_${roundedHeading}`
+    const cached = iconCache.get(key)
+    if (cached) return cached
+    const icon = createBusIcon(status, roundedHeading, busId)
+    iconCache.set(key, icon)
+    return icon
+}
+
 const createBusIcon = (status: 'active' | 'idle' | 'offline', heading: number = 0, busId = 0) => {
     const isMoving = status === 'active'
 
@@ -139,6 +154,18 @@ const createBusIcon = (status: 'active' | 'idle' | 'offline', heading: number = 
     })
 }
 
+// ── Rotate marker heading via CSS (avoids icon DOM replacement) ──────────────
+function rotateBusPuck(marker: L.Marker, heading: number) {
+    const el = (marker as any)._icon as HTMLElement | null
+    if (!el) return
+    const puck = el.querySelector('.bus-puck') as HTMLElement | null
+    if (puck) puck.style.transform = `rotate(${heading}deg)`
+}
+
+// ── Trail point distance filter (~20m minimum gap) ───────────────────────────
+const MIN_POINT_DIST = 0.0001 // ~11m — smooth trails at street zoom
+const MAX_TRAIL_POINTS = 1500  // cap for very long trips
+
 // ─── Bearing between two lat/lng points (degrees 0-360) ──────────────────────
 
 function calcBearing(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -201,6 +228,7 @@ export default function LiveMap({ buses, events = [], height = 480 }: LiveMapPro
     const markersRef = useRef<Map<number, L.Marker>>(new Map())
     const eventMarkersRef = useRef<Map<number, L.Marker>>(new Map())
     const pathsRef = useRef<Map<number, L.Polyline>>(new Map())
+    const connectorRef = useRef<Map<number, L.Polyline>>(new Map()) // 2-pt bridge: trail end → marker
     const snappedPathsRef = useRef<Map<number, L.Polyline>>(new Map())
     const snappedBorderRef = useRef<Map<number, L.Polyline>>(new Map())
     const pathHistoryRef = useRef<Map<number, [number, number][]>>(new Map())
@@ -320,6 +348,7 @@ export default function LiveMap({ buses, events = [], height = 480 }: LiveMapPro
             const z = map.getZoom()
             const w = trailWeights(z)
             pathsRef.current.forEach(p => p.setStyle({ weight: w.raw }))
+            connectorRef.current.forEach(p => p.setStyle({ weight: w.raw }))
             snappedBorderRef.current.forEach(p => p.setStyle({ weight: w.border }))
             snappedPathsRef.current.forEach(p => p.setStyle({ weight: w.fill }))
         }
@@ -350,6 +379,8 @@ export default function LiveMap({ buses, events = [], height = 480 }: LiveMapPro
                 // so the new trip starts with a clean slate
                 const oldPath = pathsRef.current.get(bus.bus_id)
                 if (oldPath) { oldPath.remove(); pathsRef.current.delete(bus.bus_id) }
+                const oldConn = connectorRef.current.get(bus.bus_id)
+                if (oldConn) { oldConn.remove(); connectorRef.current.delete(bus.bus_id) }
                 const oldBorder = snappedBorderRef.current.get(bus.bus_id)
                 if (oldBorder) { oldBorder.remove(); snappedBorderRef.current.delete(bus.bus_id) }
                 const oldSnapped = snappedPathsRef.current.get(bus.bus_id)
@@ -357,7 +388,7 @@ export default function LiveMap({ buses, events = [], height = 480 }: LiveMapPro
                 pathHistoryRef.current.delete(bus.bus_id)
                 clearMatchState(bus.bus_id)
 
-                const icon = createBusIcon(bus.status, bus.heading ?? 0, bus.bus_id)
+                const icon = getCachedBusIcon(bus.status, bus.heading ?? 0, bus.bus_id)
                 const marker = L.marker([bus.latitude, bus.longitude], { icon })
 
                 const buildPopup = (b: typeof bus) => `
@@ -421,40 +452,35 @@ export default function LiveMap({ buses, events = [], height = 480 }: LiveMapPro
             anim.animStart = performance.now()
             anim.animDuration = 2000
             anim.heading = bearing
-            anim.status = bus.status
 
-            // Update icon to reflect new heading / status immediately
-            existingMarker.setIcon(createBusIcon(bus.status, bearing, bus.bus_id))
+            // Only rebuild the icon when status changes (active↔idle↔offline)
+            // Heading rotation is handled cheaply via CSS below
+            if (anim.status !== bus.status) {
+                anim.status = bus.status
+                existingMarker.setIcon(getCachedBusIcon(bus.status, bearing, bus.bus_id))
+            }
+            // Rotate heading via CSS transform — no DOM churn
+            rotateBusPuck(existingMarker, bearing)
 
-            // ── rAF interpolation loop ─────────────────────────────────────
-            const startLat = anim.curLat
-            const startLng = anim.curLng
-
-            const tick = (now: number) => {
-                const elapsed = now - anim.animStart
-                const t = Math.min(elapsed / anim.animDuration, 1) // 0 → 1
-
-                // Ease-out cubic for natural deceleration
-                const ease = 1 - Math.pow(1 - t, 3)
-
-                const lat = startLat + (anim.tgtLat - startLat) * ease
-                const lng = startLng + (anim.tgtLng - startLng) * ease
-
-                anim.curLat = lat
-                anim.curLng = lng
-                existingMarker.setLatLng([lat, lng])
-
-                // ── Update trail (full journey, road-snapped Google Maps style) ──
+            // ── Eagerly capture trail point BEFORE starting new animation ───
+            // Previous animation was likely cancelled before t reached 1,
+            // so we record the current position now to keep the trail connected.
+            {
                 const history = pathHistoryRef.current
                 if (!history.has(bus.bus_id)) history.set(bus.bus_id, [])
                 const busPath = history.get(bus.bus_id)!
                 const last = busPath[busPath.length - 1]
-                if (!last || last[0] !== lat || last[1] !== lng) {
-                    busPath.push([lat, lng])
-                    // NO cap — full journey from start
+
+                const shouldAdd = !last ||
+                    Math.abs(prevLat - last[0]) + Math.abs(prevLng - last[1]) > MIN_POINT_DIST
+                if (shouldAdd) {
+                    busPath.push([prevLat, prevLng])
+                    if (busPath.length > MAX_TRAIL_POINTS) {
+                        busPath.splice(0, busPath.length - MAX_TRAIL_POINTS)
+                    }
                 }
 
-                // Draw the raw trail (fallback — visible until snapped trail is ready)
+                // Update the raw trail polyline (always visible)
                 const existingPath = pathsRef.current.get(bus.bus_id)
                 if (existingPath) {
                     existingPath.setLatLngs(busPath)
@@ -471,12 +497,20 @@ export default function LiveMap({ buses, events = [], height = 480 }: LiveMapPro
                     pathsRef.current.set(bus.bus_id, poly)
                 }
 
-                // Trigger incremental OSRM road-snap (async, throttled)
-                // Sends only new points, accumulates the full journey snapped geometry
-                if (busPath.length >= 5 && t >= 1) {
+                // ── Trigger OSRM road-snap (async, throttled) ───────────────
+                // Moved here from the rAF loop so it always fires on each update
+                if (busPath.length >= 5) {
                     const pathCopy: [number, number][] = [...busPath]
                     snapIncrementalTrail(bus.bus_id, pathCopy).then(fullSnapped => {
                         if (!fullSnapped || !mapRef.current) return
+
+                        // Sanity check: only show snapped trail if its endpoint is
+                        // reasonably close to the raw trail's endpoint (~200m).
+                        // Prevents showing trails on wrong roads.
+                        const rawEnd = pathCopy[pathCopy.length - 1]
+                        const snapEnd = fullSnapped[fullSnapped.length - 1]
+                        const dist = Math.abs(rawEnd[0] - snapEnd[0]) + Math.abs(rawEnd[1] - snapEnd[1])
+                        if (dist > 0.002) return // ~220m — snap is too far off, skip
 
                         // Border polyline (dark, wide — creates the outline)
                         const curZoom = mapRef.current.getZoom()
@@ -512,10 +546,55 @@ export default function LiveMap({ buses, events = [], height = 480 }: LiveMapPro
                             snappedPathsRef.current.set(bus.bus_id, fill)
                         }
 
-                        // Hide the raw fallback trail once road-snapped is visible
+                        // Dim the raw trail (but keep visible as fallback)
                         const rawPath = pathsRef.current.get(bus.bus_id)
-                        if (rawPath) rawPath.setStyle({ opacity: 0.0 })
+                        if (rawPath) rawPath.setStyle({ opacity: 0.35 })
                     })
+                }
+            }
+
+            // ── rAF interpolation loop (marker movement only) ───────────────
+            const startLat = anim.curLat
+            const startLng = anim.curLng
+
+            const tick = (now: number) => {
+                const elapsed = now - anim.animStart
+                const t = Math.min(elapsed / anim.animDuration, 1) // 0 → 1
+
+                // Ease-out cubic for natural deceleration
+                const ease = 1 - Math.pow(1 - t, 3)
+
+                const lat = startLat + (anim.tgtLat - startLat) * ease
+                const lng = startLng + (anim.tgtLng - startLng) * ease
+
+                anim.curLat = lat
+                anim.curLng = lng
+                existingMarker.setLatLng([lat, lng])
+
+                // ── Update connector: 2-point polyline from trail end → marker ──
+                // This is extremely cheap (2 points) and keeps trail visually
+                // attached to the bus at all times during animation.
+                {
+                    const busPath = pathHistoryRef.current.get(bus.bus_id)
+                    const trailEnd = busPath && busPath.length > 0
+                        ? busPath[busPath.length - 1]
+                        : [startLat, startLng] as [number, number]
+                    const connPts: [number, number][] = [trailEnd, [lat, lng]]
+                    const existingConn = connectorRef.current.get(bus.bus_id)
+                    if (existingConn) {
+                        existingConn.setLatLngs(connPts)
+                    } else {
+                        const w = trailWeights(map.getZoom())
+                        const conn = L.polyline(connPts, {
+                            color: '#60a5fa',
+                            weight: w.raw,
+                            opacity: 0.5,
+                            lineCap: 'round',
+                            lineJoin: 'round',
+                            className: 'bus-trail bus-trail-raw'
+                        }).addTo(map)
+                        connectorRef.current.set(bus.bus_id, conn)
+                    }
                 }
 
                 if (t < 1) {
@@ -541,6 +620,9 @@ export default function LiveMap({ buses, events = [], height = 480 }: LiveMapPro
                 marker.remove()
                 markersRef.current.delete(busId)
                 animStateRef.current.delete(busId)
+                // Remove connector polyline too
+                const conn = connectorRef.current.get(busId)
+                if (conn) { conn.remove(); connectorRef.current.delete(busId) }
                 // trails (pathsRef, snappedBorderRef, snappedPathsRef) stay on map
             }
         })
