@@ -179,10 +179,60 @@ class CameraModule:
 
     # ─── Evidence Saving ─────────────────────────────────────────────────────
 
+    @staticmethod
+    def _find_h264_fourcc():
+        """Find a browser-compatible H.264 fourcc that works on this system."""
+        if not CV2_AVAILABLE:
+            return None
+        for codec in ('avc1', 'x264', 'H264'):
+            fourcc = cv2.VideoWriter_fourcc(*codec)
+            # Quick probe: try to open a writer with this codec
+            test_path = os.path.join('/tmp' if os.name != 'nt' else os.environ.get('TEMP', '.'), '_codec_test.mp4')
+            w = cv2.VideoWriter(test_path, fourcc, 10, (640, 480))
+            if w.isOpened():
+                w.release()
+                try:
+                    os.remove(test_path)
+                except OSError:
+                    pass
+                return fourcc
+            w.release()
+            try:
+                os.remove(test_path)
+            except OSError:
+                pass
+        return None
+
+    @staticmethod
+    def _ffmpeg_to_h264(src_path):
+        """Re-encode an mp4v file to H.264 using ffmpeg (if available)."""
+        import subprocess
+        out_path = src_path.replace('.mp4', '_h264.mp4')
+        try:
+            subprocess.run(
+                ['ffmpeg', '-y', '-i', src_path, '-c:v', 'libx264',
+                 '-preset', 'ultrafast', '-crf', '28', '-an', out_path],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                timeout=60,
+            )
+            if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
+                os.replace(out_path, src_path)  # overwrite original
+                return True
+        except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+            # ffmpeg not installed or failed
+            try:
+                os.remove(out_path)
+            except OSError:
+                pass
+        return False
+
     def save_clip(self, event_type: str, duration_after: float = 5.0):
         """
         Save MP4 clip: 2s pre-event buffer + `duration_after` seconds after.
         Thread-safe: concurrent calls are serialized (second clip waits for first).
+
+        Produces H.264 video (playable in browsers). Falls back to mp4v + ffmpeg
+        re-encoding if H.264 codecs aren't available in OpenCV.
 
         Returns:
             str: Path to saved file, or None on failure.
@@ -210,7 +260,11 @@ class CameraModule:
             print(f"📹 Saving clip: {filename}")
 
             try:
-                fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+                # Try H.264 first (browser-compatible), fall back to mp4v
+                h264_fourcc = self._find_h264_fourcc()
+                used_h264 = h264_fourcc is not None
+                fourcc = h264_fourcc if used_h264 else cv2.VideoWriter_fourcc(*"mp4v")
+
                 writer = cv2.VideoWriter(filepath, fourcc, self.fps, self.resolution)
 
                 # Write pre-event buffer directly under lock (no frame copy — saves ~158 MB)
@@ -229,7 +283,16 @@ class CameraModule:
                         writer.write(frame)
 
                 writer.release()
-                print(f"✅ Clip saved: {filepath}")
+
+                # If we used mp4v fallback, try ffmpeg re-encode to H.264
+                if not used_h264:
+                    if self._ffmpeg_to_h264(filepath):
+                        print(f"✅ Clip saved (ffmpeg H.264): {filepath}")
+                    else:
+                        print(f"✅ Clip saved (mp4v — may not play in browser): {filepath}")
+                else:
+                    print(f"✅ Clip saved (H.264): {filepath}")
+
                 return filepath
 
             except Exception as e:

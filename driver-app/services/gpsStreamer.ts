@@ -227,3 +227,28 @@ export async function notifyPiTripStop(): Promise<boolean> {
         return false;
     }
 }
+
+/**
+ * Auto-discover the Pi's IP from the backend and configure the GPS URL.
+ * Returns the discovered info or null if no Pi was found.
+ */
+export async function autoConfigureFromBackend(busRegistration?: string): Promise<{
+    pi_ip: string; gps_port: number; demo_port: number;
+} | null> {
+    try {
+        const { discoverPi } = await import('./api');
+        const info = await discoverPi(busRegistration);
+        if (info?.pi_ip) {
+            const newUrl = `http://${info.pi_ip}:${info.gps_port}`;
+            if (newUrl !== piUrl) {
+                piUrl = newUrl;
+                await SecureStore.setItemAsync('pi_url', newUrl);
+                console.log(`[GPS] Auto-configured Pi URL: ${newUrl}`);
+            }
+            return { pi_ip: info.pi_ip, gps_port: info.gps_port, demo_port: info.demo_port };
+        }
+    } catch (err) {
+        console.warn('[GPS] Auto-discovery failed:', err);
+    }
+    return null;
+}

@@ -1,8 +1,11 @@
 /**
  * Hidden Admin / Demo Control Page
  *
- * Bypasses the Raspberry Pi entirely — streams the phone's real GPS
- * directly to the backend and injects driving events with one tap.
+ * Two modes:
+ *   1. Direct Demo — bypasses the Pi, streams GPS from phone, injects fake events.
+ *   2. Pi Connect  — talks to the real Pi's demo server; events are buffered on the
+ *                    Pi and only sent to the dashboard when you confirm them here.
+ *
  * Access: triple-tap the version text on the Profile page.
  */
 
@@ -15,6 +18,7 @@ import {
     Alert,
     ActivityIndicator,
     Switch,
+    TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -33,6 +37,7 @@ import { SectionLabel, SECTION_DOT_COLORS } from '@/components/ui/SectionLabel';
 import { theme, severityColors, eventTypeLabels } from '@/constants/theme';
 import * as api from '@/services/api';
 import type { Bus, ProfileResponse } from '@/types';
+import type { PiPendingEvent, PiStatusResponse } from '@/services/api';
 
 // ═══ Realistic Sensor Payloads ═══
 // Values match thresholds in simulator.py / main_pi.py so the backend
@@ -127,6 +132,17 @@ export default function AdminScreen() {
     // Reset
     const [resetting, setResetting] = useState(false);
 
+    // ─── Pi Connect Mode ──────────────────────────────────
+    const [piConnectMode, setPiConnectMode] = useState(false);
+    const [piIp, setPiIp] = useState('');
+    const [piUrl, setPiUrl] = useState('');
+    const [piOnline, setPiOnline] = useState<boolean | null>(null);
+    const [piChecking, setPiChecking] = useState(false);
+    const [piStatus, setPiStatus] = useState<PiStatusResponse | null>(null);
+    const [pendingEvents, setPendingEvents] = useState<PiPendingEvent[]>([]);
+    const [confirmingEvent, setConfirmingEvent] = useState<number | null>(null);
+    const piPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
     const watchRef = useRef<Location.LocationSubscription | null>(null);
     const lastLocationRef = useRef<{ lat: number; lng: number; speed: number | null; heading: number | null }>({
         lat: 0, lng: 0, speed: null, heading: null,
@@ -168,8 +184,115 @@ export default function AdminScreen() {
             setLoadingBus(false);
         })();
 
-        return () => { watchRef.current?.remove(); };
+        return () => {
+            watchRef.current?.remove();
+            if (piPollRef.current) clearInterval(piPollRef.current);
+        };
     }, []);
+
+    // ─── Pi Connect: load saved IP on mount ─────────────
+    useEffect(() => {
+        (async () => {
+            const saved = await api.loadPiUrl();
+            if (saved) {
+                // Extract IP from URL like http://192.168.43.100:8082
+                const match = saved.match(/http:\/\/([^:]+)/);
+                if (match) setPiIp(match[1]);
+                setPiUrl(saved);
+            }
+        })();
+    }, []);
+
+    // ─── Pi Connect: health check + polling ─────────────
+    const checkPiHealth = useCallback(async (url?: string) => {
+        const target = url || piUrl;
+        if (!target) return;
+        setPiChecking(true);
+        const status = await api.piCheckHealth(target);
+        setPiOnline(!!status);
+        setPiStatus(status);
+        setPiChecking(false);
+    }, [piUrl]);
+
+    const fetchPendingEvents = useCallback(async () => {
+        if (!piUrl || !piConnectMode) return;
+        try {
+            const events = await api.piGetPendingEvents(piUrl);
+            setPendingEvents(events);
+        } catch { /* silent */ }
+    }, [piUrl, piConnectMode]);
+
+    // Start/stop polling when Pi Connect mode changes
+    useEffect(() => {
+        if (piConnectMode && piUrl) {
+            checkPiHealth();
+            fetchPendingEvents();
+            piPollRef.current = setInterval(fetchPendingEvents, 3000);
+        } else {
+            if (piPollRef.current) {
+                clearInterval(piPollRef.current);
+                piPollRef.current = null;
+            }
+            setPendingEvents([]);
+        }
+        return () => {
+            if (piPollRef.current) clearInterval(piPollRef.current);
+        };
+    }, [piConnectMode, piUrl]);
+
+    // ─── Pi Connect: save IP and build URL ──────────────
+    const handlePiIpChange = useCallback(async (ip: string) => {
+        setPiIp(ip);
+        const url = ip.trim() ? `http://${ip.trim()}:8082` : '';
+        setPiUrl(url);
+        if (url) {
+            await api.persistPiUrl(url);
+            checkPiHealth(url);
+        }
+    }, [checkPiHealth]);
+
+    // ─── Pi Connect: confirm a pending event ────────────
+    const handleConfirmPiEvent = useCallback(async (eventId: number) => {
+        if (!piUrl) return;
+        setConfirmingEvent(eventId);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        const loc = lastLocationRef.current;
+        try {
+            await api.piConfirmEvent(piUrl, eventId, loc.lat, loc.lng, loc.speed);
+            setLastStatus(`✓ Pi event #${eventId} confirmed & sent`);
+            setEventsSent((c) => c + 1);
+            // Remove from local list immediately
+            setPendingEvents((prev) => prev.filter((e) => e.id !== eventId));
+        } catch (err: any) {
+            setLastStatus(`✗ Pi confirm: ${err.message}`);
+        } finally {
+            setConfirmingEvent(null);
+        }
+    }, [piUrl]);
+
+    // ─── Pi Connect: toggle demo-hold mode on Pi ────────
+    const handlePiModeToggle = useCallback(async (enabled: boolean) => {
+        setPiConnectMode(enabled);
+
+        if (enabled) {
+            // Auto-discover Pi IP from backend (no manual entry needed)
+            const info = await api.discoverPi(busReg || undefined);
+            if (info?.pi_ip) {
+                const discoveredIp = info.pi_ip;
+                const discoveredUrl = `http://${discoveredIp}:${info.demo_port}`;
+                setPiIp(discoveredIp);
+                setPiUrl(discoveredUrl);
+                await api.persistPiUrl(discoveredUrl);
+                checkPiHealth(discoveredUrl);
+            }
+        }
+
+        if (piUrl) {
+            try {
+                await api.piSetMode(piUrl, enabled);
+            } catch { /* Pi may not be reachable yet */ }
+        }
+    }, [piUrl, busReg, checkPiHealth]);
 
     // ─── GPS Stream (Direct to Backend) ─────────────────
 
@@ -258,6 +381,21 @@ export default function AdminScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
         setSendingEvent(eventType);
 
+        // ── Pi Connect Mode: route through Pi ──
+        if (piConnectMode && piUrl) {
+            try {
+                await api.piInjectEvent(piUrl, eventType, severity, loc.lat, loc.lng, loc.speed);
+                setEventsSent((c) => c + 1);
+                setLastStatus(`✓ Pi: ${eventTypeLabels[eventType]} (${severity}) with evidence`);
+            } catch (err: any) {
+                setLastStatus(`✗ Pi inject: ${err.message}`);
+            } finally {
+                setTimeout(() => setSendingEvent(null), 300);
+            }
+            return;
+        }
+
+        // ── Direct Demo Mode: send to backend ──
         const sensorData = SENSOR_PAYLOADS[eventType][severity];
         const [minSpd, maxSpd] = EVENT_SPEED_RANGE[eventType];
         const speed = loc.speed ?? (minSpd + Math.random() * (maxSpd - minSpd));
@@ -410,6 +548,136 @@ export default function AdminScreen() {
                         </View>
                     </GlassCard>
                 </AnimatedEntry>
+
+                {/* ── Pi Connect Mode Toggle ── */}
+                <AnimatedEntry delay={80} type="scale">
+                    <GlassCard tier={0} style={styles.sectionCard}>
+                        <SectionLabel text="Mode" dotColor="#a78bfa" />
+                        <View style={styles.piModeRow}>
+                            <View style={styles.piModeLabel}>
+                                <Ionicons
+                                    name={piConnectMode ? 'hardware-chip-outline' : 'phone-portrait-outline'}
+                                    size={18}
+                                    color={piConnectMode ? '#a78bfa' : theme.colors.textTertiary}
+                                />
+                                <Text style={styles.piModeLabelText}>
+                                    {piConnectMode ? 'Pi Connect' : 'Direct Demo'}
+                                </Text>
+                            </View>
+                            <Switch
+                                value={piConnectMode}
+                                onValueChange={handlePiModeToggle}
+                                trackColor={{ false: theme.colors.divider, true: '#a78bfa' }}
+                                thumbColor={theme.colors.white}
+                            />
+                        </View>
+
+                        {piConnectMode && (
+                            <View style={styles.piConnectSection}>
+                                {/* Pi IP Input */}
+                                <View style={styles.piIpRow}>
+                                    <Text style={styles.piIpLabel}>Pi IP:</Text>
+                                    <TextInput
+                                        style={styles.piIpInput}
+                                        value={piIp}
+                                        onChangeText={handlePiIpChange}
+                                        placeholder="192.168.43.100"
+                                        placeholderTextColor={theme.colors.textQuaternary}
+                                        keyboardType="numeric"
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                    />
+                                    <PressableScale onPress={() => checkPiHealth()}>
+                                        <View style={styles.refreshBtn}>
+                                            <Ionicons name="refresh" size={16} color={theme.colors.textTertiary} />
+                                        </View>
+                                    </PressableScale>
+                                </View>
+
+                                {/* Pi Status */}
+                                <View style={styles.piStatusRow}>
+                                    {piChecking ? (
+                                        <ActivityIndicator size="small" color={theme.colors.textTertiary} />
+                                    ) : (
+                                        <PulseDot
+                                            color={piOnline ? '#a78bfa' : theme.colors.danger}
+                                            size={8}
+                                            active={!!piOnline}
+                                        />
+                                    )}
+                                    <Text style={styles.piStatusText}>
+                                        Pi: {piChecking ? 'Checking…' : piOnline ? 'Connected' : piUrl ? 'Offline' : 'Enter IP'}
+                                    </Text>
+                                    {piStatus && (
+                                        <Text style={styles.piPendingBadge}>
+                                            {piStatus.pending_count} buffered
+                                        </Text>
+                                    )}
+                                </View>
+
+                                {/* Sensor Status */}
+                                {piStatus?.sensors && (
+                                    <View style={styles.piSensorsRow}>
+                                        {Object.entries(piStatus.sensors).filter(([k]) => !['bus', 'bus_id'].includes(k)).map(([key, val]) => (
+                                            <View key={key} style={styles.piSensorChip}>
+                                                <View style={[
+                                                    styles.piSensorDot,
+                                                    { backgroundColor: val === 'ok' ? theme.colors.safe : theme.colors.textQuaternary },
+                                                ]} />
+                                                <Text style={styles.piSensorText}>{key}</Text>
+                                            </View>
+                                        ))}
+                                    </View>
+                                )}
+                            </View>
+                        )}
+                    </GlassCard>
+                </AnimatedEntry>
+
+                {/* ── Pending Events (Pi Connect only) ── */}
+                {piConnectMode && piOnline && pendingEvents.length > 0 && (
+                    <AnimatedEntry delay={90} type="fade-up">
+                        <GlassCard tier={1} style={styles.sectionCard}>
+                            <SectionLabel text={`Pending Events (${pendingEvents.length})`} dotColor="#fbbf24" />
+                            <View style={styles.pendingList}>
+                                {pendingEvents.map((ev) => {
+                                    const isConfirming = confirmingEvent === ev.id;
+                                    return (
+                                        <View key={ev.id} style={styles.pendingItem}>
+                                            <View style={styles.pendingItemLeft}>
+                                                <Ionicons
+                                                    name={EVENT_ICONS[ev.type] || 'alert-circle-outline'}
+                                                    size={20}
+                                                    color={ev.severity === 'HIGH' ? theme.colors.danger : theme.colors.warning}
+                                                />
+                                                <View>
+                                                    <Text style={styles.pendingItemType}>
+                                                        {eventTypeLabels[ev.type] || ev.type}
+                                                    </Text>
+                                                    <Text style={styles.pendingItemMeta}>
+                                                        {ev.severity} • #{ev.id}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                            <PressableScale onPress={() => handleConfirmPiEvent(ev.id)}>
+                                                <View style={[
+                                                    styles.confirmBtn,
+                                                    isConfirming && { opacity: 0.5 },
+                                                ]}>
+                                                    {isConfirming ? (
+                                                        <ActivityIndicator size="small" color={theme.colors.safeText} />
+                                                    ) : (
+                                                        <Text style={styles.confirmBtnText}>Confirm</Text>
+                                                    )}
+                                                </View>
+                                            </PressableScale>
+                                        </View>
+                                    );
+                                })}
+                            </View>
+                        </GlassCard>
+                    </AnimatedEntry>
+                )}
 
                 {/* ── Bus Info + Trip Control ── */}
                 <AnimatedEntry delay={100} type="scale">
@@ -564,7 +832,15 @@ export default function AdminScreen() {
                 {/* ── Event Buttons ── */}
                 <AnimatedEntry delay={320} type="fade-up">
                     <GlassCard tier={1} style={styles.sectionCard}>
-                        <SectionLabel text="Inject Events" dotColor={theme.colors.danger} />
+                        <SectionLabel
+                            text={piConnectMode ? 'Inject Events (via Pi)' : 'Inject Events'}
+                            dotColor={theme.colors.danger}
+                        />
+                        {piConnectMode && (
+                            <Text style={styles.piInjectHint}>
+                                Events route through Pi → real camera evidence
+                            </Text>
+                        )}
                         <View style={styles.eventGrid}>
                             {EVENT_TYPES.map((type) => {
                                 const isSending = sendingEvent === type;
@@ -912,5 +1188,154 @@ const styles = StyleSheet.create({
         color: theme.colors.textQuaternary,
         textAlign: 'center',
         marginTop: theme.spacing.sm,
+    },
+
+    // Pi Connect Mode
+    piModeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: theme.spacing.sm,
+    },
+    piModeLabel: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.sm,
+    },
+    piModeLabelText: {
+        fontFamily: theme.fonts.headline,
+        fontSize: theme.fontSize.callout,
+        fontWeight: theme.fontWeight.headline,
+        color: theme.colors.textPrimary,
+    },
+    piConnectSection: {
+        marginTop: theme.spacing.base,
+        gap: theme.spacing.sm,
+    },
+    piIpRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.sm,
+    },
+    piIpLabel: {
+        fontFamily: theme.fonts.body,
+        fontSize: theme.fontSize.callout,
+        color: theme.colors.textSecondary,
+    },
+    piIpInput: {
+        flex: 1,
+        fontFamily: theme.fonts.body,
+        fontSize: theme.fontSize.callout,
+        color: theme.colors.textPrimary,
+        backgroundColor: theme.colors.glassTier0,
+        borderRadius: theme.radius.md,
+        paddingHorizontal: theme.spacing.base,
+        paddingVertical: theme.spacing.sm,
+        borderWidth: 1,
+        borderColor: theme.colors.glassBorder,
+    },
+    piStatusRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.sm,
+    },
+    piStatusText: {
+        fontFamily: theme.fonts.body,
+        fontSize: theme.fontSize.footnote,
+        color: theme.colors.textSecondary,
+        flex: 1,
+    },
+    piPendingBadge: {
+        fontFamily: theme.fonts.headline,
+        fontSize: theme.fontSize.caption,
+        fontWeight: theme.fontWeight.headline,
+        color: '#fbbf24',
+        backgroundColor: 'rgba(251,191,36,0.12)',
+        paddingHorizontal: theme.spacing.sm,
+        paddingVertical: 2,
+        borderRadius: theme.radius.full,
+    },
+    piSensorsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: theme.spacing.xs,
+        marginTop: theme.spacing.xs,
+    },
+    piSensorChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: theme.spacing.sm,
+        paddingVertical: 2,
+        borderRadius: theme.radius.full,
+        backgroundColor: theme.colors.glassTier0,
+    },
+    piSensorDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+    },
+    piSensorText: {
+        fontFamily: theme.fonts.body,
+        fontSize: theme.fontSize.caption,
+        color: theme.colors.textTertiary,
+        textTransform: 'capitalize',
+    },
+
+    // Pending events list
+    pendingList: {
+        gap: theme.spacing.sm,
+        marginTop: theme.spacing.sm,
+    },
+    pendingItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: theme.spacing.base,
+        paddingVertical: theme.spacing.sm,
+        borderRadius: theme.radius.lg,
+        backgroundColor: theme.colors.glassTier0,
+        borderWidth: 1,
+        borderColor: theme.colors.glassBorder,
+    },
+    pendingItemLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.md,
+        flex: 1,
+    },
+    pendingItemType: {
+        fontFamily: theme.fonts.headline,
+        fontSize: theme.fontSize.callout,
+        fontWeight: theme.fontWeight.headline,
+        color: theme.colors.textPrimary,
+    },
+    pendingItemMeta: {
+        fontFamily: theme.fonts.body,
+        fontSize: theme.fontSize.caption,
+        color: theme.colors.textTertiary,
+    },
+    confirmBtn: {
+        backgroundColor: theme.colors.safeBg,
+        paddingHorizontal: theme.spacing.base,
+        paddingVertical: theme.spacing.sm,
+        borderRadius: theme.radius.full,
+        borderWidth: 1,
+        borderColor: theme.colors.safe,
+    },
+    confirmBtnText: {
+        fontFamily: theme.fonts.headline,
+        fontSize: theme.fontSize.footnote,
+        fontWeight: theme.fontWeight.headline,
+        color: theme.colors.safeText,
+    },
+
+    // Pi inject hint
+    piInjectHint: {
+        fontFamily: theme.fonts.body,
+        fontSize: theme.fontSize.caption,
+        color: '#a78bfa',
+        marginTop: theme.spacing.xs,
+        marginBottom: theme.spacing.xs,
     },
 });

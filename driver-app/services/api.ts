@@ -374,3 +374,135 @@ export async function checkBackendHealth(): Promise<boolean> {
         clearTimeout(timeout);
     }
 }
+
+// ─── Pi Connect Mode (Direct-to-Pi Local API) ─────────
+
+/** Pending event from the Pi's demo buffer. */
+export interface PiPendingEvent {
+    id: number;
+    type: string;
+    severity: string;
+    value: number;
+    timestamp?: string;
+    buffered_at?: string;
+    lat?: number | null;
+    lng?: number | null;
+    speed?: number | null;
+}
+
+/** Pi status response. */
+export interface PiStatusResponse {
+    online: boolean;
+    demo_hold_mode: boolean;
+    pending_count: number;
+    sensors: Record<string, string>;
+}
+
+/** Helper for Pi HTTP calls (no auth, short timeout). */
+async function piFetch<T = any>(piUrl: string, path: string, options: RequestInit = {}): Promise<T> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    try {
+        const res = await fetch(`${piUrl}${path}`, {
+            ...options,
+            headers: { 'Content-Type': 'application/json', ...(options.headers as Record<string, string> || {}) },
+            signal: controller.signal,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `Pi HTTP ${res.status}`);
+        return data as T;
+    } catch (err: any) {
+        if (err.name === 'AbortError') throw new Error('Pi connection timed out');
+        throw err;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+/** Check if the Pi's demo server is reachable. */
+export async function piCheckHealth(piUrl: string): Promise<PiStatusResponse | null> {
+    try {
+        return await piFetch<PiStatusResponse>(piUrl, '/status');
+    } catch {
+        return null;
+    }
+}
+
+/** Get pending (buffered) events from the Pi. */
+export async function piGetPendingEvents(piUrl: string): Promise<PiPendingEvent[]> {
+    const data = await piFetch<{ events: PiPendingEvent[] }>(piUrl, '/pending-events');
+    return data.events || [];
+}
+
+/** Confirm and send a specific buffered event (triggers evidence capture on Pi). */
+export async function piConfirmEvent(piUrl: string, eventId: number, lat?: number, lng?: number, speed?: number | null): Promise<any> {
+    return piFetch(piUrl, '/confirm-event', {
+        method: 'POST',
+        body: JSON.stringify({ event_id: eventId, lat, lng, speed }),
+    });
+}
+
+/** Inject a manual event on the Pi (captures real evidence and sends to backend). */
+export async function piInjectEvent(piUrl: string, eventType: string, severity: string, lat?: number, lng?: number, speed?: number | null): Promise<any> {
+    return piFetch(piUrl, '/inject-event', {
+        method: 'POST',
+        body: JSON.stringify({ event_type: eventType, severity, lat, lng, speed }),
+    });
+}
+
+/** Toggle demo-hold mode on the Pi. */
+export async function piSetMode(piUrl: string, demoHold: boolean): Promise<any> {
+    return piFetch(piUrl, '/set-mode', {
+        method: 'POST',
+        body: JSON.stringify({ demo_hold: demoHold }),
+    });
+}
+
+/** Clear all pending events on the Pi. */
+export async function piClearEvents(piUrl: string): Promise<any> {
+    return piFetch(piUrl, '/clear-events', { method: 'DELETE' });
+}
+
+/** Persist the Pi URL to SecureStore. */
+export async function persistPiUrl(url: string) {
+    await SecureStore.setItemAsync('pi_url', url);
+}
+
+/** Load the Pi URL from SecureStore. */
+export async function loadPiUrl(): Promise<string | null> {
+    return SecureStore.getItemAsync('pi_url');
+}
+
+// ─── Pi Auto-Discovery (via Backend) ───────────────────
+
+/** Info returned by the backend's Pi discovery endpoint. */
+export interface PiDiscoveryInfo {
+    pi_ip: string;
+    gps_port: number;
+    demo_port: number;
+    bus_registration: string;
+    last_seen: string;
+}
+
+/**
+ * Ask the backend if any Pi has registered a heartbeat for the given bus.
+ * Falls back to returning the sole registered Pi if only one exists.
+ * Returns null if no Pi is found.
+ */
+export async function discoverPi(busRegistration?: string): Promise<PiDiscoveryInfo | null> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    try {
+        const query = busRegistration ? `?bus=${encodeURIComponent(busRegistration)}` : '';
+        const res = await fetch(`${apiUrl}/api/pi/discover${query}`, {
+            method: 'GET',
+            signal: controller.signal,
+        });
+        if (!res.ok) return null;
+        return await res.json();
+    } catch {
+        return null;
+    } finally {
+        clearTimeout(timeout);
+    }
+}

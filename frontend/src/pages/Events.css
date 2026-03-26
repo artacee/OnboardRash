@@ -319,12 +319,25 @@
 }
 
 .evidence-modal {
-    max-width: 720px;
+    max-width: 1040px;
     width: 100%;
-    max-height: 90vh;
-    overflow-y: auto;
     padding: var(--space-8);
     position: relative;
+    
+    /* Liquid Glass Aesthetic */
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(32px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 
+        0 40px 80px rgba(0, 0, 0, 0.5), 
+        inset 0 1px 0 rgba(255, 255, 255, 0.2),
+        inset 0 0 20px rgba(255, 255, 255, 0.02);
+    border-radius: 24px;
+
+    /* Split Layout */
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: var(--space-8);
 }
 
 .evidence-close {
@@ -336,59 +349,71 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--glass-t2-bg);
-    backdrop-filter: blur(8px);
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: var(--radius-md);
+    border-radius: 50%;
     color: var(--text-secondary);
     cursor: pointer;
-    transition: all 0.2s ease;
-    z-index: 1;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 10;
 }
 
 .evidence-close:hover {
-    color: var(--text-primary);
-    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: rotate(90deg);
 }
 
 .evidence-media {
-    margin-bottom: var(--space-6);
-    border-radius: var(--radius-md);
+    border-radius: 16px;
     overflow: hidden;
-    background: rgba(0, 0, 0, 0.03);
-    aspect-ratio: 16 / 9;
+    background: rgba(0, 0, 0, 0.2);
     display: flex;
     align-items: center;
     justify-content: center;
+    min-height: 400px;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
 .evidence-details {
     display: flex;
     flex-direction: column;
-    gap: var(--space-5);
+    gap: var(--space-6);
 }
 
 .evidence-header-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: var(--space-4);
+    flex-direction: column;
+}
+
+.evidence-header-row > span {
+    margin-top: var(--space-2);
 }
 
 .evidence-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-4);
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
 }
 
 .evidence-item {
     display: flex;
-    align-items: flex-start;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--space-4);
-    background: var(--glass-t2-bg);
-    border-radius: var(--radius-md);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: background 0.2s;
+}
+
+.evidence-item:hover {
+    background: rgba(255, 255, 255, 0.07);
 }
 
 .evidence-label {
@@ -405,7 +430,66 @@
     color: var(--text-primary);
 }
 
+/* Evidence Indicator (table cell) */
+.evidence-indicator {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-callout);
+    transition: all 0.2s ease;
+}
+
+.evidence-indicator--has {
+    background: rgba(34, 197, 94, 0.1);
+    color: var(--color-safe);
+    border: 1px solid rgba(34, 197, 94, 0.15);
+}
+
+.evidence-indicator--none {
+    color: var(--text-tertiary);
+    opacity: 0.5;
+}
+
+/* Evidence Empty State (modal) */
+.evidence-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    height: 100%;
+    width: 100%;
+    color: var(--text-tertiary);
+    font-size: var(--text-callout);
+    font-weight: var(--weight-headline);
+}
+
 /* ─── RESPONSIVE ─── */
+@media (max-width: 900px) {
+    .evidence-modal {
+        grid-template-columns: 1fr;
+        padding: var(--space-6);
+        gap: var(--space-6);
+    }
+    
+    .evidence-media {
+        order: -1; /* Put media on top for smaller screens */
+        min-height: 250px;
+    }
+    
+    .evidence-header-row {
+        flex-direction: row;
+        align-items: center;
+    }
+    
+    .evidence-header-row > span {
+        margin-top: 0;
+    }
+}
+
 @media (max-width: 768px) {
     .events-header {
         flex-direction: column;
@@ -428,13 +512,5 @@
 
     .events-select-wrapper {
         width: 100%;
-    }
-
-    .evidence-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .evidence-modal {
-        padding: var(--space-6);
     }
 }

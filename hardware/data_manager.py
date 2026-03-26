@@ -166,12 +166,23 @@ class DataManager:
             
             headers = {'X-API-Key': self.api_key}
             
-            # 1. Upload Event Data (no snapshot embedded here)
+            # 1. Embed snapshot inline (if available) so the WebSocket broadcast
+            #    includes snapshot_url immediately — no second request needed.
+            if snapshot_path and os.path.exists(snapshot_path):
+                try:
+                    import base64
+                    with open(snapshot_path, 'rb') as f:
+                        payload['snapshot_base64'] = base64.b64encode(f.read()).decode('utf-8')
+                    print("    - Snapshot embedded inline")
+                except Exception as e:
+                    print(f"    - Snapshot inline embed failed: {e}")
+            
+            # 2. Upload Event Data (with inline snapshot if available)
             response = requests.post(
                 f"{self.server_url}/api/events",
                 json=payload,
                 headers=headers,
-                timeout=10
+                timeout=30
             )
             
             if response.status_code not in [200, 201]:
@@ -180,24 +191,26 @@ class DataManager:
             event_response = response.json()
             event_id = event_response.get('event_id')
             
-            # 2. Upload Snapshot (separate endpoint expects {'base64': ...})
+            # 3. Upload Snapshot via separate endpoint (fallback if inline failed)
             if snapshot_path and os.path.exists(snapshot_path) and event_id:
-                try:
-                    import base64
-                    with open(snapshot_path, 'rb') as f:
-                        b64_data = base64.b64encode(f.read()).decode('utf-8')
-                    snap_resp = requests.post(
-                        f"{self.server_url}/api/events/{event_id}/snapshot",
-                        json={'base64': b64_data},
-                        headers=headers,
-                        timeout=30
-                    )
-                    if snap_resp.status_code == 200:
-                        print("    - Snapshot uploaded")
-                except Exception as e:
-                    print(f"    - Snapshot sync failed: {e}")
+                if 'snapshot_base64' not in payload:
+                    # Inline failed earlier, try separate upload
+                    try:
+                        import base64
+                        with open(snapshot_path, 'rb') as f:
+                            b64_data = base64.b64encode(f.read()).decode('utf-8')
+                        snap_resp = requests.post(
+                            f"{self.server_url}/api/events/{event_id}/snapshot",
+                            json={'base64': b64_data},
+                            headers=headers,
+                            timeout=30
+                        )
+                        if snap_resp.status_code == 200:
+                            print("    - Snapshot uploaded (fallback)")
+                    except Exception as e:
+                        print(f"    - Snapshot sync failed: {e}")
             
-            # 3. Upload Video (multipart form)
+            # 4. Upload Video (multipart form — too large for inline)
             if video_path and os.path.exists(video_path) and event_id:
                 try:
                     with open(video_path, 'rb') as f:
@@ -209,7 +222,7 @@ class DataManager:
                             timeout=60
                         )
                         if vid_resp.status_code == 200:
-                            print("    - Video uploaded synced")
+                            print("    - Video uploaded")
                 except Exception as e:
                     print(f"    - Video sync failed: {e}")
             

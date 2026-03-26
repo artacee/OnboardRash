@@ -2,12 +2,31 @@
 Events API routes for the Rash Driving Detection System.
 Handles receiving events from IoT devices and serving data to dashboard.
 """
+import os
+import base64
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timedelta
 from models import db, DrivingEvent, Bus, BusLocation
 from extensions import socketio
 
 events_bp = Blueprint('events', __name__)
+
+
+def _save_inline_snapshot(event, b64_data):
+    """Save an inline base64 snapshot and set snapshot_url on the event."""
+    try:
+        image_data = base64.b64decode(b64_data)
+        upload_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'uploads')
+        os.makedirs(upload_dir, exist_ok=True)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"event_{event.id}_{timestamp}.jpg"
+        filepath = os.path.join(upload_dir, filename)
+        with open(filepath, 'wb') as f:
+            f.write(image_data)
+        event.snapshot_url = f"/api/media/{filename}"
+        db.session.commit()
+    except Exception as e:
+        print(f"  ⚠️  Inline snapshot save failed: {e}")
 
 
 @events_bp.route('/api/events', methods=['POST'])
@@ -29,7 +48,8 @@ def receive_event():
             "lat": 9.9312,
             "lng": 76.2673
         },
-        "timestamp": "2026-01-21T15:30:00"  // optional, uses server time if not provided
+        "timestamp": "2026-01-21T15:30:00",  // optional, uses server time if not provided
+        "snapshot_base64": "..."  // optional, inline evidence snapshot
     }
     """
     from models import process_event_data
@@ -39,6 +59,10 @@ def receive_event():
     
     if error:
         return jsonify(error), 400
+    
+    # Handle optional inline snapshot (single-request evidence)
+    if data.get('snapshot_base64'):
+        _save_inline_snapshot(event, data['snapshot_base64'])
     
     event_dict = event.to_dict()
     # Broadcast to dashboard

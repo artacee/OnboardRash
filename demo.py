@@ -142,8 +142,53 @@ def main():
     print('=' * 60)
 
     try:
-        # 1. Backend ──────────────────────────────────────────
-        print('\n[1/3]  Starting Flask backend...')
+        # 1. Ngrok Tunnel ────────────────────────────────────────
+        print('\n[1/4]  Starting ngrok tunnel...')
+        tunnel_url = None
+        try:
+            ngrok_kwargs = dict(popen_kwargs)
+            if sys.platform == 'win32':
+                ngrok_kwargs['creationflags'] = subprocess.CREATE_NEW_CONSOLE
+                ngrok_cmd = ['cmd', '/k', 'ngrok', 'http', '5000']
+            else:
+                ngrok_cmd = ['ngrok', 'http', '5000']
+                
+            ngrok = subprocess.Popen(
+                ngrok_cmd,
+                **ngrok_kwargs,
+            )
+            processes.append(('Ngrok Tunnel', ngrok))
+            
+            # Wait for tunnel URL
+            import urllib.request, json
+            print('  Waiting for tunnel URL...')
+            for _ in range(15):
+                time.sleep(1)
+                try:
+                    req = urllib.request.Request("http://127.0.0.1:4040/api/tunnels")
+                    with urllib.request.urlopen(req, timeout=1) as response:
+                        if response.status == 200:
+                            data = json.loads(response.read().decode('utf-8'))
+                            if "tunnels" in data and len(data["tunnels"]) > 0:
+                                for tun in data["tunnels"]:
+                                    if tun["proto"] == "https":
+                                        tunnel_url = tun["public_url"]
+                                        break
+                                if not tunnel_url:
+                                    tunnel_url = data["tunnels"][0]["public_url"]
+                                break
+                except Exception:
+                    pass
+
+            if tunnel_url:
+                print(f'  Tunnel ready   ->  {tunnel_url}')
+            else:
+                print('  WARNING: Could not connect to ngrok API.')
+        except FileNotFoundError:
+            print('  WARNING: "ngrok" command not found. Tunnel will not be started.')
+
+        # 2. Backend ──────────────────────────────────────────
+        print('\n[2/4]  Starting Flask backend...')
         backend = subprocess.Popen(
             [python, BACKEND_SCRIPT],
             cwd=os.path.join(ROOT_DIR, 'backend'),
@@ -157,8 +202,8 @@ def main():
             sys.exit(1)
         print(f'  Backend ready  ->  {BACKEND_URL}')
 
-        # 2. Frontend ─────────────────────────────────────────
-        print('\n[2/3]  Starting Vite frontend...')
+        # 3. Frontend ─────────────────────────────────────────
+        print('\n[3/4]  Starting Vite frontend...')
         frontend = subprocess.Popen(
             [npm, 'run', 'dev'],
             cwd=FRONTEND_DIR,
@@ -172,9 +217,8 @@ def main():
         actual_frontend_url = FRONTEND_URL
         print(f'  Frontend ready ->  {actual_frontend_url}')
 
-        # 3. Simulator ────────────────────────────────────────
-        print('\n[3/3]  Simulator ready to be started via Settings page.')
-        # simulator = subprocess.Popen(...) - Started manually now
+        # 4. Simulator ────────────────────────────────────────
+        print('\n[4/4]  Simulator ready to be started via Settings page.')
 
         # ── Open browser ────────────────────────────────────
         print(f'\n  Opening browser ->  {actual_frontend_url}')
@@ -199,14 +243,24 @@ def main():
         print('=' * 60)
         print(f'  Frontend  :  {actual_frontend_url}')
         print(f'  Backend   :  {BACKEND_URL}')
+        if tunnel_url:
+            print(f'  Tunnel URL:  {tunnel_url}')
         print(f'  Login     :  ajmal / 12345')
         print()
-        print(f'  Your LAN IP            :  {lan_ip}')
-        print(f'  Phone / Driver App URL :  http://{lan_ip}:5000')
-        print(f'  Raspberry Pi URL       :  http://{lan_ip}:5000')
+        print('  HOW TO CONNECT DEVICES:')
+        if tunnel_url:
+            print('  Since ngrok is running, devices can be on ANY network.')
+            print(f'  Phone / Driver App URL :  {tunnel_url}')
+            print(f'  Raspberry Pi URL       :  {tunnel_url}')
+        else:
+            print('  (No ngrok tunnel detected)')
+            print(f'  Your LAN IP            :  {lan_ip}')
+            print(f'  Phone / Driver App URL :  http://{lan_ip}:5000')
+            print(f'  Raspberry Pi URL       :  http://{lan_ip}:5000')
         print()
-        print('  Enter the URL above in the driver app and Pi config')
-        print('  to connect them to this backend over your local network.')
+        print('  Enter the URL above in the driver app (.env EXPO_PUBLIC_API_URL)')
+        print('  and Pi config (start prompt or .env SERVER_URL).')
+        print('  Remember: Pi and Phone must be on the SAME network for GPS (Phone hotspot).')
         print()
         print('  Press Ctrl+C to stop everything.')
         print('=' * 60)

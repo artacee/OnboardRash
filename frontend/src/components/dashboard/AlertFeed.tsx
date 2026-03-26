@@ -161,7 +161,7 @@ export default function AlertFeed({
                                     <Clock size={12} />
                                     {new Date(event.timestamp).toLocaleTimeString()}
                                 </span>
-                                {event.speed > 0 && <span>{event.speed} km/h</span>}
+                                {event.speed > 0 && <span>{Math.round(event.speed)} km/h</span>}
                             </div>
                         </div>
 

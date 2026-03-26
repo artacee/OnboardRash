@@ -4,6 +4,7 @@ Handles video and snapshot uploads for event evidence.
 """
 import os
 import base64
+import subprocess
 from flask import Blueprint, request, jsonify, send_from_directory, current_app
 from datetime import datetime
 from werkzeug.utils import secure_filename
@@ -34,6 +35,27 @@ def get_upload_folder():
     return folder
 
 
+def _reencode_to_h264(filepath):
+    """Re-encode video to H.264 for browser playback (if ffmpeg is available)."""
+    out_path = filepath + '.h264.mp4'
+    try:
+        subprocess.run(
+            ['ffmpeg', '-y', '-i', filepath, '-c:v', 'libx264',
+             '-preset', 'ultrafast', '-crf', '28', '-an', out_path],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            timeout=120,
+        )
+        if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
+            os.replace(out_path, filepath)
+            print(f"  ✅ Video re-encoded to H.264: {os.path.basename(filepath)}")
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        # ffmpeg not available — keep original
+        try:
+            os.remove(out_path)
+        except OSError:
+            pass
+
+
 @media_bp.route('/api/events/<int:event_id>/video', methods=['POST'])
 def upload_video(event_id):
     """
@@ -58,6 +80,9 @@ def upload_video(event_id):
     filename = secure_filename(f"event_{event_id}_{timestamp}.mp4")
     filepath = os.path.join(get_upload_folder(), filename)
     file.save(filepath)
+    
+    # Re-encode to H.264 for browser playback
+    _reencode_to_h264(filepath)
     
     # Update event
     event.video_url = f"/api/media/{filename}"

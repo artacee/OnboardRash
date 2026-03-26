@@ -39,8 +39,10 @@ export interface Event {
   accel_x: number
   accel_y: number
   accel_z: number
-  snapshot_path?: string
-  video_path?: string
+  snapshot_url?: string
+  video_url?: string
+  has_snapshot?: boolean
+  has_video?: boolean
   acknowledged?: boolean
 }
 

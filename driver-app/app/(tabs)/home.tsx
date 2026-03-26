@@ -127,6 +127,8 @@ export default function HomeScreen() {
     }, []);
 
     const checkConnections = useCallback(async () => {
+        // Auto-discover Pi IP from backend (no manual entry needed)
+        await gps.autoConfigureFromBackend();
         const piStatus = await gps.checkPiConnection();
         setPiConnected(piStatus.connected);
         const streaming = await gps.isStreaming();
@@ -186,6 +188,9 @@ export default function HomeScreen() {
             // API call FIRST, then GPS — if API fails, no orphaned GPS stream
             const result = await api.startTrip(busId, busRegistration);
             setActiveTrip(result.trip);
+
+            // Auto-discover Pi before starting GPS (ensures correct IP)
+            await gps.autoConfigureFromBackend(busRegistration);
 
             // Now start GPS streaming
             const started = await gps.startGPSStream();

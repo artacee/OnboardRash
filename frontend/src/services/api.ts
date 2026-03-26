@@ -112,8 +112,10 @@ export function mapEvent(e: any): Event { // eslint-disable-line @typescript-esl
     accel_x: e.acceleration_x ?? 0,
     accel_y: e.acceleration_y ?? 0,
     accel_z: e.acceleration_z ?? 0,
-    snapshot_path: e.snapshot_url,
-    video_path: e.video_url,
+    snapshot_url: e.snapshot_url,
+    video_url: e.video_url,
+    has_snapshot: e.has_snapshot ?? !!e.snapshot_url,
+    has_video: e.has_video ?? !!e.video_url,
     acknowledged: e.acknowledged
   }
 }

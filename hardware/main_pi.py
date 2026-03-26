@@ -39,6 +39,14 @@ from sensors.sensor_fusion import KalmanFilter
 from sensors.phone_gps import PhoneGPSReceiver
 from data_manager import DataManager
 
+# Flask for Pi Connect Mode demo server (optional)
+try:
+    from flask import Flask, jsonify, request as flask_request
+    from flask_cors import CORS
+    FLASK_AVAILABLE = True
+except ImportError:
+    FLASK_AVAILABLE = False
+
 # Try to import camera, tailgating detector, and OpenCV
 CV2_AVAILABLE = False
 try:
@@ -73,6 +81,8 @@ def _parse_args():
                    help='Skip interactive startup prompt')
     p.add_argument('--auto-network', action='store_true',
                    help='Run network_setup.py to auto-connect WiFi first')
+    p.add_argument('--demo-port', metavar='PORT', type=int, default=8082,
+                   help='Port for the demo server (default: 8082)')
     return p.parse_args()
 
 _cli = _parse_args()
@@ -210,7 +220,7 @@ def _interactive_prompt():
                 data_manager.server_url = SERVER_URL
                 print(f"  ✓ SERVER_URL = {SERVER_URL}")
             else:
-                print("  Usage: s http://192.168.x.x:5000")
+                print("  Usage: s https://<id>.ngrok.io OR http://192.168.x.x:5000")
         elif cmd.lower().startswith('p '):
             try:
                 PHONE_GPS_PORT = int(cmd[2:].strip())
@@ -258,6 +268,166 @@ if _cli.auto_network:
 
 # Initialize Data Manager (uses current SERVER_URL)
 data_manager = DataManager(SERVER_URL, API_KEY)
+
+
+# ── Pi Connect Mode — Demo Server ───────────────────────────────
+
+class DemoServer:
+    """
+    Lightweight HTTP server for Pi Connect Mode.
+    Runs as a daemon thread. The driver app talks to this server to:
+      - See buffered (held) events
+      - Confirm & send individual events with evidence
+      - Inject manual events with real camera evidence
+      - Toggle demo-hold mode on/off
+    """
+
+    DEFAULT_PORT = 8082
+
+    def __init__(self, port=DEFAULT_PORT):
+        self.port = port
+        self.demo_hold_mode = False
+        self.pending_events = []
+        self._event_id_counter = 0
+        self._lock = threading.Lock()
+
+        # Callbacks (set by main before start)
+        self.on_confirm_event = None
+        self.on_inject_event = None
+        self.get_sensor_status = None
+
+        self._thread = None
+
+    def add_pending_event(self, event_dict):
+        with self._lock:
+            self._event_id_counter += 1
+            event_dict['id'] = self._event_id_counter
+            event_dict['buffered_at'] = datetime.utcnow().isoformat()
+            self.pending_events.append(event_dict)
+            if len(self.pending_events) > 50:
+                self.pending_events.pop(0)
+            return self._event_id_counter
+
+    def get_pending(self):
+        with self._lock:
+            return list(self.pending_events)
+
+    def pop_event(self, event_id):
+        with self._lock:
+            for i, ev in enumerate(self.pending_events):
+                if ev.get('id') == event_id:
+                    return self.pending_events.pop(i)
+            return None
+
+    def clear_pending(self):
+        with self._lock:
+            count = len(self.pending_events)
+            self.pending_events.clear()
+            return count
+
+    def _create_app(self):
+        import logging
+        app = Flask(__name__)
+        logging.getLogger('werkzeug').setLevel(logging.WARNING)
+        CORS(app)
+
+        @app.route('/status', methods=['GET'])
+        def status():
+            info = self.get_sensor_status() if self.get_sensor_status else {}
+            return jsonify({
+                'online': True,
+                'demo_hold_mode': self.demo_hold_mode,
+                'pending_count': len(self.pending_events),
+                'sensors': info,
+            })
+
+        @app.route('/pending-events', methods=['GET'])
+        def pending_events():
+            return jsonify({'events': self.get_pending(), 'demo_hold_mode': self.demo_hold_mode})
+
+        @app.route('/confirm-event', methods=['POST'])
+        def confirm_event():
+            data = flask_request.get_json(silent=True) or {}
+            eid = data.get('event_id')
+            if eid is None:
+                return jsonify({'error': 'event_id required'}), 400
+            event = self.pop_event(int(eid))
+            if not event:
+                return jsonify({'error': f'Event {eid} not found'}), 404
+            
+            # Override with manual coordinates from driver app if provided
+            lat = data.get('lat')
+            lng = data.get('lng')
+            speed = data.get('speed')
+            if lat is not None: event['ext_lat'] = lat
+            if lng is not None: event['ext_lng'] = lng
+            if speed is not None: event['ext_speed'] = speed
+            
+            if self.on_confirm_event:
+                ok = self.on_confirm_event(event)
+                if ok:
+                    return jsonify({'message': f'Event {eid} confirmed and sent', 'event': event})
+                return jsonify({'error': 'Failed to send event'}), 500
+            return jsonify({'error': 'No confirm handler'}), 500
+
+        @app.route('/inject-event', methods=['POST'])
+        def inject_event():
+            data = flask_request.get_json(silent=True) or {}
+            et = data.get('event_type')
+            sev = data.get('severity', 'MEDIUM')
+            if not et:
+                return jsonify({'error': 'event_type required'}), 400
+            valid = ['HARSH_BRAKE', 'HARSH_ACCEL', 'AGGRESSIVE_TURN', 'TAILGATING', 'CLOSE_OVERTAKING']
+            if et not in valid:
+                return jsonify({'error': f'Invalid type. Must be one of: {valid}'}), 400
+                
+            lat = data.get('lat')
+            lng = data.get('lng')
+            speed = data.get('speed')
+            
+            if self.on_inject_event:
+                ok = self.on_inject_event(et, sev, lat, lng, speed)
+                if ok:
+                    return jsonify({'message': f'{et} ({sev}) injected with evidence'})
+                return jsonify({'error': 'Failed to inject event'}), 500
+            return jsonify({'error': 'No inject handler'}), 500
+
+        @app.route('/set-mode', methods=['POST'])
+        def set_mode():
+            data = flask_request.get_json(silent=True) or {}
+            dh = data.get('demo_hold')
+            if dh is None:
+                return jsonify({'error': 'demo_hold (bool) required'}), 400
+            self.demo_hold_mode = bool(dh)
+            label = 'DEMO HOLD' if self.demo_hold_mode else 'NORMAL'
+            print(f"\n{'━'*50}")
+            print(f"🔧 Mode changed → {label}")
+            print(f"{'━'*50}\n")
+            return jsonify({'message': f'Mode set to {label}', 'demo_hold_mode': self.demo_hold_mode})
+
+        @app.route('/clear-events', methods=['DELETE'])
+        def clear_events():
+            c = self.clear_pending()
+            return jsonify({'message': f'Cleared {c} pending events', 'cleared': c})
+
+        return app
+
+    def start(self):
+        if not FLASK_AVAILABLE:
+            print("⚠️  Cannot start demo server — Flask not installed (pip install flask flask-cors)")
+            return False
+        app = self._create_app()
+
+        def _run():
+            app.run(host='0.0.0.0', port=self.port, threaded=True, use_reloader=False)
+
+        self._thread = threading.Thread(target=_run, daemon=True, name='demo-server')
+        self._thread.start()
+        print(f"🌐 Demo server started on port {self.port}")
+        return True
+
+# Initialize Demo Server (Pi Connect Mode — phone toggles demo-hold via /set-mode)
+demo_server = DemoServer(port=_cli.demo_port)
 
 # 2. Interactive prompt (unless --no-prompt)
 if not _cli.no_prompt:
@@ -332,6 +502,43 @@ def register_bus_with_backend():
     t = threading.Thread(target=_background_retry, daemon=True)
     t.start()
     return None
+
+
+# ── Pi Auto-Discovery Heartbeat ────────────────────────────
+def _start_heartbeat():
+    """
+    Background thread: POST our IP + ports to the backend every 30s
+    so the driver app can auto-discover this Pi without manual IP entry.
+    """
+    def _heartbeat_loop():
+        while True:
+            try:
+                net = _get_network_info()
+                own_ip = net.get('own_ip')
+                if not own_ip:
+                    # Fallback: let the backend use request.remote_addr
+                    own_ip = None
+
+                payload = {
+                    'bus_registration': BUS_REGISTRATION,
+                    'pi_ip': own_ip,
+                    'gps_port': PHONE_GPS_PORT,
+                    'demo_port': _cli.demo_port,
+                    'tunnel_url': SERVER_URL if 'ngrok' in SERVER_URL else None,
+                }
+                requests.post(
+                    f"{SERVER_URL}/api/pi/heartbeat",
+                    json=payload,
+                    headers={'X-API-Key': API_KEY},
+                    timeout=5,
+                )
+            except Exception:
+                pass  # Non-critical — will retry next cycle
+            time.sleep(30)
+
+    t = threading.Thread(target=_heartbeat_loop, daemon=True, name='pi-heartbeat')
+    t.start()
+    print("📡 Pi heartbeat started (auto-discovery enabled)")
 
 
 class RashDrivingDetector:
@@ -427,11 +634,109 @@ def send_event(event_data, gps_data, accel, video_path=None, snapshot_path=None)
         return False
 
 
+def _confirm_event_handler(event_dict, gps_ref, camera_ref):
+    """
+    Callback for demo server: confirm a buffered event.
+    Captures evidence and sends the event to the backend.
+    """
+    try:
+        gps_data = gps_ref() if callable(gps_ref) else {}
+        accel = {
+            'x': event_dict.get('accel_x', 0),
+            'y': event_dict.get('accel_y', 0),
+            'z': event_dict.get('accel_z', 0),
+        }
+
+        # Use stored GPS from when event was detected, if available
+        ev_gps = {
+            'latitude': event_dict.get('ext_lat') if event_dict.get('ext_lat') is not None else event_dict.get('lat'),
+            'longitude': event_dict.get('ext_lng') if event_dict.get('ext_lng') is not None else event_dict.get('lng'),
+            'speed': event_dict.get('ext_speed') if event_dict.get('ext_speed') is not None else event_dict.get('speed'),
+        }
+        # Fall back to current GPS if event GPS is missing
+        if not ev_gps['latitude']:
+            ev_gps = gps_data
+
+        severity_emoji = "🔴" if event_dict.get('severity') == 'HIGH' else "🟡"
+        print(f"\n{severity_emoji} CONFIRMED EVENT: {event_dict['type']} ({event_dict.get('severity')})")
+
+        cam = camera_ref() if callable(camera_ref) else None
+        
+        if cam:
+            def _capture_and_send(evt=event_dict, gps_data=ev_gps, acc=accel, camera_module=cam):
+                snap = camera_module.capture_snapshot(evt['type'])
+                if snap:
+                    print(f"  📷 Snapshot ready: {snap}")
+                
+                clip = None
+                if evt.get('severity') == 'HIGH':
+                    clip = camera_module.save_clip(evt['type'], duration_after=5)
+                    if clip:
+                        print(f"  📹 Clip ready: {clip}")
+                
+                send_event(evt, gps_data, acc, video_path=clip, snapshot_path=snap)
+            threading.Thread(target=_capture_and_send, daemon=True).start()
+        else:
+            send_event(event_dict, ev_gps, accel)
+            
+        return True
+    except Exception as e:
+        print(f"  ❌ Confirm event failed: {e}")
+        return False
+
+
+def _inject_event_handler(event_type, severity, lat, lng, speed, gps_ref, camera_ref):
+    """
+    Callback for demo server: inject a manual event with real evidence.
+    """
+    try:
+        gps_data = gps_ref() if callable(gps_ref) else {}
+        
+        # Override with manual coords if provided from driver app
+        if lat is not None: gps_data['latitude'] = lat
+        if lng is not None: gps_data['longitude'] = lng
+        if speed is not None: gps_data['speed'] = speed
+
+        event_data = {
+            'type': event_type,
+            'severity': severity,
+            'value': 0,
+        }
+        accel = {'x': 0, 'y': 0, 'z': 1.0}
+
+        severity_emoji = "🔴" if severity == 'HIGH' else "🟡"
+        print(f"\n{severity_emoji} INJECTED EVENT: {event_type} ({severity})")
+
+        cam = camera_ref() if callable(camera_ref) else None
+        
+        if cam:
+            def _capture_and_send(evt=event_data, gps=gps_data, acc=accel, camera_module=cam):
+                snap = camera_module.capture_snapshot(evt['type'])
+                if snap:
+                    print(f"  📷 Snapshot ready: {snap}")
+                    
+                clip = None
+                if evt.get('severity') == 'HIGH':
+                    clip = camera_module.save_clip(evt['type'], duration_after=5)
+                    if clip:
+                        print(f"  📹 Clip ready: {clip}")
+                        
+                send_event(evt, gps, acc, video_path=clip, snapshot_path=snap)
+            threading.Thread(target=_capture_and_send, daemon=True).start()
+        else:
+            send_event(event_data, gps_data, accel)
+            
+        return True
+    except Exception as e:
+        print(f"  ❌ Inject event failed: {e}")
+        return False
+
+
 def main():
     """Main loop for the Raspberry Pi detector."""
     print("\n" + "="*60)
-    print("🚌 RASH DRIVING DETECTION SYSTEM v2.2")
-    print("   Full Hardware Mode + Sensor Fusion (Kalman Filter)")
+    print("🚌 RASH DRIVING DETECTION SYSTEM v2.3")
+    print("   Full Hardware Mode + Sensor Fusion + Pi Connect")
     print("="*60)
     print(f"Server: {SERVER_URL}")
     print(f"Bus: {BUS_REGISTRATION}")
@@ -443,6 +748,7 @@ def main():
     print("  STEP 1/4 — SERVER CONNECTION & BUS REGISTRATION")
     print("─"*50)
     register_bus_with_backend()
+    _start_heartbeat()
     _wait_for_user("Bus registration done. Press ENTER to proceed to IMU calibration...")
 
     # ── STEP 2: IMU Calibration ──────────────────────────────
@@ -540,6 +846,27 @@ def main():
     print(f"  Bus         : {BUS_REGISTRATION} (ID: {BUS_ID or 'pending'})")
     print(f"  Server      : {SERVER_URL}")
     print("="*60)
+
+    # ── Start Demo Server (Pi Connect Mode) ───────────────
+    # Store references for the demo server callbacks
+    _gps_ref = lambda: gps.read() if gps else {}
+    _camera_ref = lambda: camera
+
+    demo_server.on_confirm_event = lambda ev: _confirm_event_handler(ev, _gps_ref, _camera_ref)
+    demo_server.on_inject_event = lambda et, sev, lat, lng, spd: _inject_event_handler(et, sev, lat, lng, spd, _gps_ref, _camera_ref)
+    demo_server.get_sensor_status = lambda: {
+        'imu': 'ok' if mpu else 'unavailable',
+        'gps': 'ok' if gps else 'unavailable',
+        'camera': 'ok' if camera else 'unavailable',
+        'ultrasonic': 'ok' if overtaking_detector else 'unavailable',
+        'bus': BUS_REGISTRATION,
+        'bus_id': BUS_ID,
+    }
+
+    demo_server.start()
+    if demo_server.demo_hold_mode:
+        print("\n🔧 DEMO HOLD MODE — Events will be buffered for phone control")
+
     _wait_for_user("Press ENTER to start the sensor loop...")
 
     print("\n" + "="*60)
@@ -669,6 +996,21 @@ def main():
                 if gps_stale_seconds > 5.0:
                     event['gps_stale'] = True
                 severity_emoji = "🔴" if event.get('severity') == 'HIGH' else "🟡"
+
+                # ── DEMO HOLD MODE: buffer events instead of sending ──
+                if demo_server.demo_hold_mode:
+                    # Store GPS + accel data with the event for later confirmation
+                    event['lat'] = gps_data.get('latitude')
+                    event['lng'] = gps_data.get('longitude')
+                    event['speed'] = gps_data.get('speed')
+                    event['accel_x'] = accel.get('x', 0)
+                    event['accel_y'] = accel.get('y', 0)
+                    event['accel_z'] = accel.get('z', 0)
+                    eid = demo_server.add_pending_event(event)
+                    print(f"{severity_emoji} BUFFERED: {event['type']} (id={eid}, pending={len(demo_server.pending_events)})")
+                    continue
+
+                # ── NORMAL MODE: send immediately ──
                 print(f"{severity_emoji} DETECTED: {event['type']}")
                 
                 # Capture evidence in background thread, THEN queue event with media paths.
@@ -696,12 +1038,14 @@ def main():
                     gps_status = '✗'
                 cam_status = '✓' if camera else '✗'
                 trip_label = '🟢ACTIVE' if trip_active else '⏳STANDBY'
+                hold_label = ' 🔧HOLD' if demo_server.demo_hold_mode else ''
+                pending_label = f' Pend:{len(demo_server.pending_events)}' if demo_server.demo_hold_mode else ''
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] "
-                      f"{trip_label} | "
+                      f"{trip_label}{hold_label} | "
                       f"Accel X:{accel['x']:.2f}g | "
                       f"Speed: {estimated_speed:.1f} km/h | "
                       f"GPS:{gps_status} Cam:{cam_status} | "
-                      f"Events:{events_detected}")
+                      f"Events:{events_detected}{pending_label}")
                 last_print = current_time
             
             time.sleep(SAMPLE_RATE)

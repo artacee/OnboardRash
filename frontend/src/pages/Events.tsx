@@ -20,7 +20,10 @@ import {
     MapPin,
     Clock,
     Gauge,
-    Zap
+    Zap,
+    Camera,
+    Video,
+    FileQuestion
 } from 'lucide-react'
 import api from '@/services/api'
 import type { Event, EventType, EventSeverity } from '@/types'
@@ -248,6 +251,7 @@ export default function Events() {
                                                 <th>Type</th>
                                                 <th>Severity</th>
                                                 <th>Speed</th>
+                                                <th>Evidence</th>
                                                 <th>Location</th>
                                             </tr>
                                         </thead>
@@ -290,8 +294,19 @@ export default function Events() {
                                                         </td>
                                                         <td>
                                                             <span className="events-speed">
-                                                                {event.speed} <small>km/h</small>
+                                                                {Math.round(event.speed)} <small>km/h</small>
                                                             </span>
+                                                        </td>
+                                                        <td>
+                                                            {(event.has_video || event.has_snapshot) ? (
+                                                                <span className="evidence-indicator evidence-indicator--has" title={event.has_video ? 'Video available' : 'Snapshot available'}>
+                                                                    {event.has_video ? <Video size={14} /> : <Camera size={14} />}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="evidence-indicator evidence-indicator--none" title="No evidence">
+                                                                    —
+                                                                </span>
+                                                            )}
                                                         </td>
                                                         <td>
                                                             <span className="events-location">
@@ -384,26 +399,6 @@ export default function Events() {
                                     <X size={20} />
                                 </motion.button>
 
-                                {/* Evidence Image/Video */}
-                                {(selectedEvent.snapshot_path || selectedEvent.video_path) && (
-                                    <div className="evidence-media">
-                                        {selectedEvent.video_path ? (
-                                            // eslint-disable-next-line jsx-a11y/media-has-caption
-                                            <video
-                                                src={selectedEvent.video_path}
-                                                controls
-                                                style={{ width: '100%', borderRadius: 'var(--radius-md)' }}
-                                            />
-                                        ) : (
-                                            <img
-                                                src={selectedEvent.snapshot_path}
-                                                alt="Event evidence"
-                                                style={{ width: '100%', borderRadius: 'var(--radius-md)', objectFit: 'cover' }}
-                                            />
-                                        )}
-                                    </div>
-                                )}
-
                                 {/* Event Details */}
                                 <div className="evidence-details">
                                     <div className="evidence-header-row">
@@ -444,7 +439,7 @@ export default function Events() {
                                             <Gauge size={16} style={{ color: 'var(--text-tertiary)' }} />
                                             <div>
                                                 <span className="evidence-label">Speed</span>
-                                                <span className="evidence-value">{selectedEvent.speed} km/h</span>
+                                                <span className="evidence-value">{Math.round(selectedEvent.speed)} km/h</span>
                                             </div>
                                         </div>
 
@@ -472,6 +467,30 @@ export default function Events() {
                                             </div>
                                         )}
                                     </div>
+                                </div>
+
+                                {/* Evidence Image/Video */}
+                                <div className="evidence-media">
+                                    {selectedEvent.video_url ? (
+                                        // eslint-disable-next-line jsx-a11y/media-has-caption
+                                        <video
+                                            src={selectedEvent.video_url}
+                                            controls
+                                            poster={selectedEvent.snapshot_url || undefined}
+                                            style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 'var(--radius-md)' }}
+                                        />
+                                    ) : selectedEvent.snapshot_url ? (
+                                        <img
+                                            src={selectedEvent.snapshot_url}
+                                            alt="Event evidence snapshot"
+                                            style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 'var(--radius-md)' }}
+                                        />
+                                    ) : (
+                                        <div className="evidence-empty-state">
+                                            <FileQuestion size={40} style={{ opacity: 0.25 }} />
+                                            <span>No evidence captured</span>
+                                        </div>
+                                    )}
                                 </div>
                             </motion.div>
                         </motion.div>

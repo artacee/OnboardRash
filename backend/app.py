@@ -3,12 +3,14 @@ Main Flask application for the Rash Driving Detection System.
 Integrates Flask-SocketIO for real-time alerts to dashboard.
 """
 import os
+from datetime import datetime, timedelta
 
 from flask import Flask, send_from_directory, jsonify, request
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from dotenv import load_dotenv
 from functools import wraps
+import requests
 
 from models import db as models_db # Kept for explicit import chain if needed, but not shadowing
 from extensions import db, socketio, jwt
@@ -98,6 +100,85 @@ app.broadcast_alert = broadcast_alert
 app.broadcast_bus_update = None # Deprecated, buses.py uses socketio directly
 
 
+# ==================== PI AUTO-DISCOVERY ====================
+# In-memory store: { bus_registration: { pi_ip, gps_port, demo_port, last_seen } }
+_pi_registry = {}
+
+@app.route('/api/pi/heartbeat', methods=['POST'])
+def pi_heartbeat():
+    """
+    Called by the Raspberry Pi every ~30s to announce its IP.
+    Payload: { bus_registration, pi_ip (optional), gps_port, demo_port }
+    If pi_ip is omitted, we use request.remote_addr.
+    """
+    data = request.get_json(silent=True) or {}
+    bus_reg = data.get('bus_registration')
+    if not bus_reg:
+        return jsonify({'error': 'bus_registration required'}), 400
+
+    pi_ip = data.get('pi_ip') or request.remote_addr
+    gps_port = data.get('gps_port', 8081)
+    demo_port = data.get('demo_port', 8082)
+    tunnel_url = data.get('tunnel_url')
+
+    _pi_registry[bus_reg] = {
+        'pi_ip': pi_ip,
+        'gps_port': gps_port,
+        'demo_port': demo_port,
+        'tunnel_url': tunnel_url,
+        'bus_registration': bus_reg,
+        'last_seen': datetime.utcnow().isoformat(),
+    }
+    return jsonify({'status': 'ok'})
+
+
+@app.route('/api/pi/discover', methods=['GET'])
+def pi_discover():
+    """
+    Called by the driver app to look up a Pi's IP by bus registration.
+    Query: ?bus=KL-01-AB-1234
+    Returns the Pi info or 404.
+    """
+    bus_reg = request.args.get('bus')
+    if not bus_reg:
+        # If only one Pi is registered, return that one (demo convenience)
+        if len(_pi_registry) == 1:
+            return jsonify(list(_pi_registry.values())[0])
+        return jsonify({'error': 'bus query param required'}), 400
+
+    info = _pi_registry.get(bus_reg)
+    if not info:
+        # Fallback: if only one Pi is registered, return it regardless of bus
+        if len(_pi_registry) == 1:
+            return jsonify(list(_pi_registry.values())[0])
+        return jsonify({'error': f'No Pi registered for {bus_reg}'}), 404
+    return jsonify(info)
+
+
+@app.route('/api/pi/all', methods=['GET'])
+def pi_list_all():
+    """List all registered Pi endpoints (for debugging / dashboard)."""
+    return jsonify({'count': len(_pi_registry), 'devices': list(_pi_registry.values())})
+
+
+@app.route('/api/tunnel', methods=['GET'])
+def get_tunnel():
+    """Dynamically get the active ngrok tunnel URL running on this laptop."""
+    try:
+        response = requests.get("http://localhost:4040/api/tunnels", timeout=2)
+        if response.status_code == 200:
+            data = response.json()
+            if "tunnels" in data and len(data["tunnels"]) > 0:
+                for tunnel in data["tunnels"]:
+                    if tunnel["proto"] == "https":
+                        return jsonify({'tunnel_url': tunnel["public_url"]})
+                return jsonify({'tunnel_url': data["tunnels"][0]["public_url"]})
+    except requests.exceptions.RequestException:
+        pass
+    
+    return jsonify({'error': 'No active tunnel found'}), 404
+
+
 # ==================== AUTH ROUTES ====================
 
 @app.route('/api/auth/login', methods=['POST'])
@@ -178,6 +259,20 @@ if __name__ == '__main__':
     print("Server starting on http://localhost:5000")
     print("Dashboard: http://localhost:5000")
     print("API Docs: POST /api/events, GET /api/events, GET /api/buses")
+    
+    # Try to see if ngrok is running
+    try:
+        response = requests.get("http://127.0.0.1:4040/api/tunnels", timeout=1)
+        if response.status_code == 200 and len(response.json().get('tunnels', [])) > 0:
+            tunnel = response.json()['tunnels'][0]['public_url']
+            print(f"🔗 TUNNEL ACTIVE: {tunnel}")
+            print("   Make sure to put THIS URL in your Pi's SERVER_URL")
+            print("   and your Driver App's EXPO_PUBLIC_API_URL.")
+    except Exception:
+        print("⚠️  No tunnel (ngrok) detected.")
+        print("   If you want to use the Pi/Phone on different networks from the laptop,")
+        print("   start ngrok in another terminal: ngrok http 5000")
+        
     print("="*60 + "\n")
     
     socketio.run(app, host='0.0.0.0', port=5000, debug=True, use_reloader=False, allow_unsafe_werkzeug=True)
