@@ -13,9 +13,9 @@
     },
     "production": {
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "apk"
       },
-      "distribution": "store"
+      "distribution": "internal"
     }
   },
   "submit": {

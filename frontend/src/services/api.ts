@@ -96,6 +96,15 @@ export const statsApi = {
  */
 
 /**
+ * Formats a backend timestamp string into a standard ISO data string with UTC timezone.
+ */
+export function formatTimestamp(ts: string | undefined): string {
+  if (!ts) return ''
+  if (ts.includes('Z') || ts.includes('+') || ts.match(/-\d{2}:\d{2}$/)) return ts
+  return ts.trim().replace(' ', 'T') + 'Z'
+}
+
+/**
  * Map a raw backend event object to the frontend Event type
  */
 export function mapEvent(e: any): Event { // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -105,7 +114,7 @@ export function mapEvent(e: any): Event { // eslint-disable-line @typescript-esl
     bus_registration: e.bus_registration,
     event_type: e.event_type,
     severity: e.severity,
-    timestamp: e.timestamp,
+    timestamp: formatTimestamp(e.timestamp),
     latitude: e.location?.lat ?? 0,
     longitude: e.location?.lng ?? 0,
     speed: e.speed ?? 0,
@@ -169,7 +178,7 @@ export function mapBusLocation(loc: any): BusLocation { // eslint-disable-line @
     longitude: loc.longitude,
     speed: loc.speed ?? 0,
     heading: loc.heading ?? 0,
-    timestamp: loc.updated_at || '',
+    timestamp: formatTimestamp(loc.updated_at),
     status: 'active' as BusStatus
   }
 }
